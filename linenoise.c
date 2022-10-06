@@ -120,13 +120,18 @@
 
 struct linenoise_st
 {
+    struct
+    {
+        FILE * stream;
+        int fd;
+    } in;
+    struct
+    {
+        FILE * stream;
+        int fd;
+    } out;
+
     bool is_a_tty;
-
-    FILE * in_stream;
-    int in_fd;
-    FILE * out_stream;
-    int out_fd;
-
     bool in_raw_mode;
     struct termios orig_termios;
 
@@ -387,7 +392,7 @@ failed:
 /* Clear the screen. Used to handle ctrl+l */
 void linenoiseClearScreen(linenoise_st * const linenoise_ctx)
 {
-    if (write(linenoise_ctx->out_fd, "\x1b[H\x1b[2J", 7) <= 0)
+    if (write(linenoise_ctx->out.fd, "\x1b[H\x1b[2J", 7) <= 0)
     {
         /* nothing to do, just to avoid warning. */
     }
@@ -462,7 +467,7 @@ static int completeLine(linenoise_st * const linenoise_ctx, struct linenoiseStat
                 refreshLine(linenoise_ctx, ls);
             }
 
-            nread = read(linenoise_ctx->in_fd, &c, 1);
+            nread = read(linenoise_ctx->in.fd, &c, 1);
             if (nread <= 0)
             {
                 freeCompletions(&lc);
@@ -633,7 +638,7 @@ refreshSingleLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     bool success = true;
     char seq[64];
     size_t plen = strlen(l->prompt);
-    int const fd = linenoise_ctx->out_fd;
+    int const fd = linenoise_ctx->out.fd;
     char * buf = l->buf;
     size_t len = l->len;
     size_t pos = l->pos;
@@ -699,7 +704,7 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     int rpos2; /* rpos after refresh. */
     int col; /* colum position, zero-based. */
     int old_rows = l->maxrows;
-    int const fd = linenoise_ctx->out_fd;
+    int const fd = linenoise_ctx->out.fd;
     struct abuf ab;
 
     /* Update maxrows if needed. */
@@ -835,7 +840,7 @@ static int linenoiseEditInsert(linenoise_st * const linenoise_ctx,
             {
                 /* Avoid a full update of the line in the trivial case. */
                 char const d = linenoise_ctx->options.maskmode ? '*' : c;
-                if (write(linenoise_ctx->out_fd, &d, 1) == -1)
+                if (write(linenoise_ctx->out.fd, &d, 1) == -1)
                 {
                     return -1;
                 }
@@ -1015,7 +1020,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
      * initially is just an empty string. */
     linenoiseHistoryAdd(linenoise_ctx, "");
 
-    if (write(linenoise_ctx->out_fd, prompt, l.prompt_len) == -1)
+    if (write(linenoise_ctx->out.fd, prompt, l.prompt_len) == -1)
     {
         return -1;
     }
@@ -1026,7 +1031,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
         int nread;
         char seq[3];
 
-        nread = read(linenoise_ctx->in_fd, &c, 1);
+        nread = read(linenoise_ctx->in.fd, &c, 1);
         if (nread <= 0)
             return l.len;
 
@@ -1121,11 +1126,11 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
             /* Read the next two bytes representing the escape sequence.
              * Use two calls to handle slow terminals returning the two
              * chars at different times. */
-            if (read(linenoise_ctx->in_fd, seq, 1) == -1)
+            if (read(linenoise_ctx->in.fd, seq, 1) == -1)
             {
                 break;
             }
-            if (read(linenoise_ctx->in_fd, seq + 1, 1) == -1)
+            if (read(linenoise_ctx->in.fd, seq + 1, 1) == -1)
             {
                 break;
             }
@@ -1136,7 +1141,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
                 if (seq[1] >= '0' && seq[1] <= '9')
                 {
                     /* Extended escape, read additional byte. */
-                    if (read(linenoise_ctx->in_fd, seq + 2, 1) == -1)
+                    if (read(linenoise_ctx->in.fd, seq + 2, 1) == -1)
                         break;
                     if (seq[2] == '~')
                     {
@@ -1243,7 +1248,7 @@ void linenoisePrintKeyCodes(linenoise_st * const linenoise_ctx)
 
     printf("Linenoise key codes debugging mode.\n"
            "Press keys to see scan codes. Type 'quit' at any time to exit.\n");
-    if (enableRawMode(linenoise_ctx, linenoise_ctx->in_fd) == -1)
+    if (enableRawMode(linenoise_ctx, linenoise_ctx->in.fd) == -1)
         return;
     memset(quit, ' ', 4);
     while (1)
@@ -1251,7 +1256,7 @@ void linenoisePrintKeyCodes(linenoise_st * const linenoise_ctx)
         char c;
         int nread;
 
-        nread = read(linenoise_ctx->in_fd, &c, 1);
+        nread = read(linenoise_ctx->in.fd, &c, 1);
         if (nread <= 0)
             continue;
         memmove(quit, quit + 1, sizeof(quit) - 1); /* shift string to left. */
@@ -1262,9 +1267,9 @@ void linenoisePrintKeyCodes(linenoise_st * const linenoise_ctx)
         printf("'%c' %02x (%d) (type quit to exit)\n",
                isprint(c) ? c : '?', (int)c, (int)c);
         printf("\r"); /* Go left edge manually, we are in raw mode. */
-        fflush(linenoise_ctx->out_stream);
+        fflush(linenoise_ctx->out.stream);
     }
-    disableRawMode(linenoise_ctx, linenoise_ctx->in_fd);
+    disableRawMode(linenoise_ctx, linenoise_ctx->in.fd);
 }
 #endif
 
@@ -1283,13 +1288,13 @@ linenoiseRaw(linenoise_st * const linenoise_ctx,
         return -1;
     }
 
-    if (enableRawMode(linenoise_ctx, linenoise_ctx->in_fd) == -1)
+    if (enableRawMode(linenoise_ctx, linenoise_ctx->in.fd) == -1)
     {
         return -1;
     }
-    count = linenoiseEdit(linenoise_ctx, linenoise_ctx->in_fd, linenoise_ctx->out_fd, buf, buflen, prompt);
-    disableRawMode(linenoise_ctx, linenoise_ctx->in_fd);
-    fprintf(linenoise_ctx->out_stream, "\n");
+    count = linenoiseEdit(linenoise_ctx, linenoise_ctx->in.fd, linenoise_ctx->out.fd, buf, buflen, prompt);
+    disableRawMode(linenoise_ctx, linenoise_ctx->in.fd);
+    fprintf(linenoise_ctx->out.stream, "\n");
 
     return count;
 }
@@ -1320,7 +1325,7 @@ static char * linenoiseNoTTY(linenoise_st * const linenoise_ctx)
                 return NULL;
             }
         }
-        int c = fgetc(linenoise_ctx->in_stream);
+        int c = fgetc(linenoise_ctx->in.stream);
         if (c == EOF || c == '\n')
         {
             if (c == EOF && len == 0)
@@ -1362,10 +1367,10 @@ char * linenoise(linenoise_st * const linenoise_ctx, const char * prompt)
     {
         size_t len;
 
-        fprintf(linenoise_ctx->out_stream, "%s", prompt);
-        fflush(linenoise_ctx->out_stream);
+        fprintf(linenoise_ctx->out.stream, "%s", prompt);
+        fflush(linenoise_ctx->out.stream);
 
-        if (fgets(buf, LINENOISE_MAX_LINE, linenoise_ctx->in_stream) == NULL)
+        if (fgets(buf, LINENOISE_MAX_LINE, linenoise_ctx->in.stream) == NULL)
         {
             return NULL;
         }
@@ -1554,12 +1559,12 @@ linenoise_new(FILE * const in_stream, FILE * const out_stream)
         goto done;
     }
 
-    linenoise_ctx->in_stream = in_stream;
-    linenoise_ctx->in_fd = fileno(in_stream);
-    linenoise_ctx->is_a_tty = isatty(linenoise_ctx->in_fd);
+    linenoise_ctx->in.stream = in_stream;
+    linenoise_ctx->in.fd = fileno(in_stream);
+    linenoise_ctx->is_a_tty = isatty(linenoise_ctx->in.fd);
 
-    linenoise_ctx->out_stream = out_stream;
-    linenoise_ctx->out_fd = fileno(out_stream);
+    linenoise_ctx->out.stream = out_stream;
+    linenoise_ctx->out.fd = fileno(out_stream);
 
     linenoise_ctx->history.max_len = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
 
@@ -1576,7 +1581,7 @@ linenoise_delete(linenoise_st * const linenoise_ctx)
     }
     if (linenoise_ctx->in_raw_mode)
     {
-        disableRawMode(linenoise_ctx, linenoise_ctx->in_fd);
+        disableRawMode(linenoise_ctx, linenoise_ctx->in.fd);
     }
     freeHistory(linenoise_ctx);
 
