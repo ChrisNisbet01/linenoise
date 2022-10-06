@@ -44,13 +44,11 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef struct linenoise_st linenoise_st;
 
-typedef struct linenoiseCompletions {
-  size_t len;
-  char **cvec;
-} linenoiseCompletions;
+typedef struct linenoiseCompletions linenoiseCompletions;
 
 typedef void(linenoiseCompletionCallback)(const char *, linenoiseCompletions *);
 typedef char*(linenoiseHintsCallback)(const char *, int *color, int *bold);
@@ -59,6 +57,10 @@ void linenoiseSetCompletionCallback(linenoise_st * linenoise_ctx, linenoiseCompl
 void linenoiseSetHintsCallback(linenoise_st * linenoise_ctx, linenoiseHintsCallback * cb);
 void linenoiseSetFreeHintsCallback(linenoise_st * linenoise_ctx, linenoiseFreeHintsCallback * cb);
 void linenoiseAddCompletion(linenoiseCompletions * completions, const char * completion);
+linenoiseCompletions * linenoise_completions_get(linenoise_st * linenoise_ctx);
+
+typedef bool (*key_binding_handler_cb)(linenoise_st * linenoise_ctx, char key, void * user_ctx);
+void linenoise_bind_key(linenoise_st * linenoise_ctx, uint8_t key, key_binding_handler_cb handler, void * user_ctx);
 
 char *linenoise(linenoise_st * linenoise_ctx, const char *prompt);
 void linenoiseFree(void *ptr);

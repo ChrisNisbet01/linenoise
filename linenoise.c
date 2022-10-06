@@ -118,6 +118,18 @@
 #include <unistd.h>
 #include "linenoise.h"
 
+
+struct linenoiseCompletions {
+  size_t len;
+  char **cvec;
+};
+
+typedef struct key_binding_st
+{
+    void * user_ctx;
+    key_binding_handler_cb handler;
+} key_binding_st;
+
 struct linenoise_st
 {
     struct
@@ -134,6 +146,9 @@ struct linenoise_st
     bool is_a_tty;
     bool in_raw_mode;
     struct termios orig_termios;
+
+    key_binding_st key_bindings[256]; /* One for each character. */
+    linenoiseCompletions * completions;
 
     struct
     {
@@ -218,6 +233,43 @@ FILE *lndebug_fp = NULL;
 #else
 #define lndebug(fmt, ...)
 #endif
+
+/* Free a list of completion option populated by linenoiseAddCompletion(). */
+static void
+freeCompletions(linenoiseCompletions * const lc)
+{
+    size_t i;
+    for (i = 0; i < lc->len; i++)
+        free(lc->cvec[i]);
+    if (lc->cvec != NULL)
+        free(lc->cvec);
+}
+
+static linenoiseCompletions *
+linenoise_completions_new(void)
+{
+    linenoiseCompletions * lc;
+
+    lc = calloc(1, sizeof *lc);
+
+    return lc;
+}
+
+static void
+linenoise_completions_free(linenoiseCompletions * const lc)
+{
+    if (lc != NULL)
+    {
+        freeCompletions(lc);
+        free(lc);
+    }
+}
+
+linenoiseCompletions *
+linenoise_completions_get(linenoise_st * const linenoise_ctx)
+{
+    return linenoise_ctx->completions;
+}
 
 /* ======================= Low level terminal handling ====================== */
 
@@ -417,30 +469,15 @@ linenoiseBeepControl(linenoise_st * const linenoise_ctx, bool const enable)
 }
 /* ============================== Completion ================================ */
 
-/* Free a list of completion option populated by linenoiseAddCompletion(). */
-static void freeCompletions(linenoiseCompletions * lc)
+static int
+print_completions(linenoise_st * const linenoise_ctx,
+                  struct linenoiseState * ls,
+                  linenoiseCompletions * const lc)
 {
-    size_t i;
-    for (i = 0; i < lc->len; i++)
-        free(lc->cvec[i]);
-    if (lc->cvec != NULL)
-        free(lc->cvec);
-}
-
-/* This is an helper function for linenoiseEdit() and is called when the
- * user types the <tab> key in order to complete the string currently in the
- * input.
- *
- * The state of the editing is encapsulated into the pointed linenoiseState
- * structure as described in the structure definition. */
-static int completeLine(linenoise_st * const linenoise_ctx, struct linenoiseState * ls)
-{
-    linenoiseCompletions lc = { 0, NULL };
     int nread, nwritten;
     char c = 0;
 
-    linenoise_ctx->options.completionCallback(ls->buf, &lc);
-    if (lc.len == 0)
+    if (lc->len == 0)
     {
         linenoiseBeep(linenoise_ctx);
     }
@@ -451,12 +488,12 @@ static int completeLine(linenoise_st * const linenoise_ctx, struct linenoiseStat
         while (!stop)
         {
             /* Show completion or original buffer */
-            if (i < lc.len)
+            if (i < lc->len)
             {
                 struct linenoiseState saved = *ls;
 
-                ls->len = ls->pos = strlen(lc.cvec[i]);
-                ls->buf = lc.cvec[i];
+                ls->len = ls->pos = strlen(lc->cvec[i]);
+                ls->buf = lc->cvec[i];
                 refreshLine(linenoise_ctx, ls);
                 ls->len = saved.len;
                 ls->pos = saved.pos;
@@ -470,15 +507,14 @@ static int completeLine(linenoise_st * const linenoise_ctx, struct linenoiseStat
             nread = read(linenoise_ctx->in.fd, &c, 1);
             if (nread <= 0)
             {
-                freeCompletions(&lc);
                 return -1;
             }
 
             switch (c)
             {
             case TAB: /* tab */
-                i = (i + 1) % (lc.len + 1);
-                if (i == lc.len)
+                i = (i + 1) % (lc->len + 1);
+                if (i == lc->len)
                 {
                     linenoiseBeep(linenoise_ctx);
                 }
@@ -486,7 +522,7 @@ static int completeLine(linenoise_st * const linenoise_ctx, struct linenoiseStat
 
             case ESC: /* escape */
                 /* Re-show original buffer */
-                if (i < lc.len)
+                if (i < lc->len)
                 {
                     refreshLine(linenoise_ctx, ls);
                 }
@@ -495,9 +531,9 @@ static int completeLine(linenoise_st * const linenoise_ctx, struct linenoiseStat
 
             default:
                 /* Update buffer and return */
-                if (i < lc.len)
+                if (i < lc->len)
                 {
-                    nwritten = snprintf(ls->buf, ls->buflen, "%s", lc.cvec[i]);
+                    nwritten = snprintf(ls->buf, ls->buflen, "%s", lc->cvec[i]);
                     ls->len = ls->pos = nwritten;
                 }
                 stop = 1;
@@ -506,8 +542,24 @@ static int completeLine(linenoise_st * const linenoise_ctx, struct linenoiseStat
         }
     }
 
-    freeCompletions(&lc);
     return c; /* Return last read character */
+}
+
+/* This is an helper function for linenoiseEdit() and is called when the
+ * user types the <tab> key in order to complete the string currently in the
+ * input.
+ *
+ * The state of the editing is encapsulated into the pointed linenoiseState
+ * structure as described in the structure definition. */
+static int completeLine(linenoise_st * const linenoise_ctx, struct linenoiseState * ls)
+{
+    linenoiseCompletions lc = { 0, NULL };
+
+    linenoise_ctx->options.completionCallback(ls->buf, &lc);
+    int res = print_completions(linenoise_ctx, ls, &lc);
+    freeCompletions(&lc);
+
+    return res;
 }
 
 /* Register a callback function to be called for tab-completion. */
@@ -1077,6 +1129,36 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
         if (nread <= 0)
             return l.len;
 
+
+        if (linenoise_ctx->key_bindings[(unsigned)c].handler != NULL)
+        {
+            size_t const index = (unsigned)c;
+
+            if (linenoise_ctx->completions != NULL)
+            {
+                linenoise_completions_free(linenoise_ctx->completions);
+            }
+            linenoise_ctx->completions = linenoise_completions_new();
+
+            bool const res = linenoise_ctx->key_bindings[index].handler(
+                    linenoise_ctx,
+                    c,
+                    linenoise_ctx->key_bindings[index].user_ctx);
+
+            if (!res)
+            {
+                fprintf(stderr, "failed\n");
+            }
+
+            if (linenoise_ctx->completions->len > 0)
+            {
+                print_completions(linenoise_ctx, &l, linenoise_ctx->completions);
+            }
+
+            linenoise_completions_free(linenoise_ctx->completions);
+            linenoise_ctx->completions = NULL;
+            continue;
+        }
         /* Only autocomplete when the callback is set. It returns < 0 when
          * there was an error reading from fd. Otherwise it will return the
          * character that should be handled next. */
@@ -1393,7 +1475,7 @@ char * linenoise(linenoise_st * const linenoise_ctx, const char * prompt)
         fprintf(linenoise_ctx->out.stream, "%s", prompt);
         fflush(linenoise_ctx->out.stream);
 
-        if (fgets(buf, sizeof bu, linenoise_ctx->in.stream) == NULL)
+        if (fgets(buf, sizeof buf, linenoise_ctx->in.stream) == NULL)
         {
             return NULL;
         }
@@ -1612,5 +1694,14 @@ linenoise_delete(linenoise_st * const linenoise_ctx)
 
 done:
     return;
+}
+
+void linenoise_bind_key(linenoise_st * const linenoise_ctx,
+                        uint8_t const key,
+                        key_binding_handler_cb const handler,
+                        void * const user_ctx)
+{
+    linenoise_ctx->key_bindings[key].handler = handler;
+    linenoise_ctx->key_bindings[key].user_ctx = user_ctx;
 }
 
