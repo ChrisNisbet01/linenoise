@@ -53,10 +53,10 @@ typedef struct linenoiseCompletions {
 typedef void(linenoiseCompletionCallback)(const char *, linenoiseCompletions *);
 typedef char*(linenoiseHintsCallback)(const char *, int *color, int *bold);
 typedef void(linenoiseFreeHintsCallback)(void *);
-void linenoiseSetCompletionCallback(linenoiseCompletionCallback *);
-void linenoiseSetHintsCallback(linenoiseHintsCallback *);
-void linenoiseSetFreeHintsCallback(linenoiseFreeHintsCallback *);
-void linenoiseAddCompletion(linenoiseCompletions *, const char *);
+void linenoiseSetCompletionCallback(linenoise_st * linenoise_ctx, linenoiseCompletionCallback * cb);
+void linenoiseSetHintsCallback(linenoise_st * linenoise_ctx, linenoiseHintsCallback * cb);
+void linenoiseSetFreeHintsCallback(linenoise_st * linenoise_ctx, linenoiseFreeHintsCallback * cb);
+void linenoiseAddCompletion(linenoiseCompletions * completions, const char * completion);
 
 char *linenoise(linenoise_st * linenoise_ctx, const char *prompt);
 void linenoiseFree(void *ptr);
