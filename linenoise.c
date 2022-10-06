@@ -476,7 +476,7 @@ static int completeLine(linenoise_st * const linenoise_ctx, struct linenoiseStat
 
             switch (c)
             {
-            case 9: /* tab */
+            case TAB: /* tab */
                 i = (i + 1) % (lc.len + 1);
                 if (i == lc.len)
                 {
@@ -484,7 +484,7 @@ static int completeLine(linenoise_st * const linenoise_ctx, struct linenoiseStat
                 }
                 break;
 
-            case 27: /* escape */
+            case ESC: /* escape */
                 /* Re-show original buffer */
                 if (i < lc.len)
                 {
@@ -801,8 +801,11 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     return success;
 }
 
-/* Calls the two low level functions refreshSingleLine() or
- * refreshMultiLine() according to the selected mode. */
+/* Calls one of the two low level functions
+ *      refreshSingleLine()
+ * or
+ *      refreshMultiLine()
+ * according to the selected mode. */
 static bool
 refreshLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
 {
@@ -1390,7 +1393,7 @@ char * linenoise(linenoise_st * const linenoise_ctx, const char * prompt)
         fprintf(linenoise_ctx->out.stream, "%s", prompt);
         fflush(linenoise_ctx->out.stream);
 
-        if (fgets(buf, LINENOISE_MAX_LINE, linenoise_ctx->in.stream) == NULL)
+        if (fgets(buf, sizeof bu, linenoise_ctx->in.stream) == NULL)
         {
             return NULL;
         }
@@ -1404,7 +1407,7 @@ char * linenoise(linenoise_st * const linenoise_ctx, const char * prompt)
     }
     else
     {
-        count = linenoiseRaw(linenoise_ctx, buf, LINENOISE_MAX_LINE, prompt);
+        count = linenoiseRaw(linenoise_ctx, buf, sizeof buf, prompt);
         if (count == -1)
             return NULL;
         return strdup(buf);
@@ -1552,7 +1555,7 @@ int linenoiseHistoryLoad(const char * filename)
     if (fp == NULL)
         return -1;
 
-    while (fgets(buf, LINENOISE_MAX_LINE, fp) != NULL)
+    while (fgets(buf, sizeof buf, fp) != NULL)
     {
         char * p;
 
