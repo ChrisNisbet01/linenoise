@@ -58,20 +58,20 @@ void linenoiseSetHintsCallback(linenoiseHintsCallback *);
 void linenoiseSetFreeHintsCallback(linenoiseFreeHintsCallback *);
 void linenoiseAddCompletion(linenoiseCompletions *, const char *);
 
-char *linenoise(const char *prompt);
+char *linenoise(linenoise_st * linenoise_ctx, const char *prompt);
 void linenoiseFree(void *ptr);
 int linenoiseHistoryAdd(const char *line);
 int linenoiseHistorySetMaxLen(int len);
 int linenoiseHistorySave(const char *filename);
 int linenoiseHistoryLoad(const char *filename);
-void linenoiseClearScreen(void);
+void linenoiseClearScreen(linenoise_st * linenoise_ctx);
 void linenoiseSetMultiLine(int ml);
-void linenoisePrintKeyCodes(linenoise_st * linenoise);
+void linenoisePrintKeyCodes(linenoise_st * linenoise_ctx);
 void linenoiseMaskModeEnable(void);
 void linenoiseMaskModeDisable(void);
 
 void
-linenoiseBeepControl(linenoise_st * linenoise, bool enable);
+linenoiseBeepControl(linenoise_st * linenoise_ctx, bool enable);
 
 struct linenoise_st *
 linenoise_new(FILE * in_stream, FILE * out_stream);
