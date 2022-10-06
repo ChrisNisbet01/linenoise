@@ -130,6 +130,23 @@ typedef struct key_binding_st
     key_binding_handler_cb handler;
 } key_binding_st;
 
+/* The linenoiseState structure represents the state during line editing.
+ * We pass this state to functions implementing specific editing
+ * functionalities. */
+struct linenoiseState
+{
+    char * buf;          /* Edited line buffer. */
+    size_t buflen;       /* Edited line buffer size. */
+    char const * prompt; /* Prompt to display. */
+    size_t prompt_len;   /* Prompt length. */
+    size_t pos;          /* Current cursor position. */
+    size_t oldpos;       /* Previous refresh cursor position. */
+    size_t len;          /* Current edited line length. */
+    size_t cols;         /* Number of columns in terminal. */
+    size_t maxrows;      /* Maximum num of rows used so far (multiline mode) */
+    int history_index;   /* The history index we are currently editing. */
+};
+
 struct linenoise_st
 {
     struct
@@ -149,6 +166,8 @@ struct linenoise_st
 
     key_binding_st key_bindings[256]; /* One for each character. */
     linenoiseCompletions * completions;
+
+    struct linenoiseState state;
 
     struct
     {
@@ -172,23 +191,6 @@ struct linenoise_st
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
 #define LINENOISE_MAX_LINE 4096
 static char * unsupported_term[] = { "dumb", "cons25", "emacs", NULL };
-
-/* The linenoiseState structure represents the state during line editing.
- * We pass this state to functions implementing specific editing
- * functionalities. */
-struct linenoiseState
-{
-    char * buf;          /* Edited line buffer. */
-    size_t buflen;       /* Edited line buffer size. */
-    char const * prompt; /* Prompt to display. */
-    size_t prompt_len;   /* Prompt length. */
-    size_t pos;          /* Current cursor position. */
-    size_t oldpos;       /* Previous refresh cursor position. */
-    size_t len;          /* Current edited line length. */
-    size_t cols;         /* Number of columns in terminal. */
-    size_t maxrows;      /* Maximum num of rows used so far (multiline mode) */
-    int history_index;   /* The history index we are currently editing. */
-};
 
 enum KEY_ACTION
 {
@@ -269,6 +271,16 @@ linenoiseCompletions *
 linenoise_completions_get(linenoise_st * const linenoise_ctx)
 {
     return linenoise_ctx->completions;
+}
+
+char const * linenoise_line_get(linenoise_st * linenoise_ctx)
+{
+    return linenoise_ctx->state.buf;
+}
+
+size_t linenoise_point_get(linenoise_st * linenoise_ctx)
+{
+    return linenoise_ctx->state.pos;
 }
 
 /* ======================= Low level terminal handling ====================== */
@@ -1129,29 +1141,32 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
                          char * buf, size_t buflen,
                          const char * prompt)
 {
-    struct linenoiseState l;
+    memset(&linenoise_ctx->state, 0, sizeof linenoise_ctx->state);
+
+    struct linenoiseState * l = &linenoise_ctx->state;
 
     /* Populate the linenoise state that we pass to functions implementing
      * specific editing functionalities. */
-    l.buf = buf;
-    l.buflen = buflen;
-    l.prompt = prompt;
-    l.prompt_len = strlen(prompt);
-    l.oldpos = l.pos = 0;
-    l.len = 0;
-    l.cols = getColumns(stdin_fd, stdout_fd);
-    l.maxrows = 0;
-    l.history_index = 0;
+    l->buf = buf;
+    l->buflen = buflen;
+    l->prompt = prompt;
+    l->prompt_len = strlen(prompt);
+    l->oldpos = 0;
+    l->pos = 0;
+    l->len = 0;
+    l->cols = getColumns(stdin_fd, stdout_fd);
+    l->maxrows = 0;
+    l->history_index = 0;
 
     /* Buffer starts empty. */
-    l.buf[0] = '\0';
-    l.buflen--; /* Make sure there is always space for the nulterm */
+    l->buf[0] = '\0';
+    l->buflen--; /* Make sure there is always space for the nulterm */
 
     /* The latest history entry is always our current buffer, that
      * initially is just an empty string. */
     linenoiseHistoryAdd(linenoise_ctx, "");
 
-    if (write(linenoise_ctx->out.fd, prompt, l.prompt_len) == -1)
+    if (write(linenoise_ctx->out.fd, prompt, l->prompt_len) == -1)
     {
         return -1;
     }
@@ -1164,7 +1179,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
 
         nread = read(linenoise_ctx->in.fd, &c, 1);
         if (nread <= 0)
-            return l.len;
+            return l->len;
 
 
         if (linenoise_ctx->key_bindings[(unsigned)c].handler != NULL)
@@ -1190,7 +1205,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
             if (linenoise_ctx->completions->len > 0)
             {
                 display_matches(linenoise_ctx, linenoise_ctx->completions);
-                refreshLine(linenoise_ctx, &l);
+                refreshLine(linenoise_ctx, l);
             }
 
             linenoise_completions_free(linenoise_ctx->completions);
@@ -1202,10 +1217,10 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
          * character that should be handled next. */
         if (c == TAB && linenoise_ctx->options.completionCallback != NULL)
         {
-            c = completeLine(linenoise_ctx, &l);
+            c = completeLine(linenoise_ctx, l);
             /* Return on errors */
             if (c < 0)
-                return l.len;
+                return l->len;
             /* Read next character when 0 */
             if (c == 0)
                 continue;
@@ -1214,22 +1229,22 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
         switch (c)
         {
         case ENTER:    /* enter */
-            linenoise_edit_done(linenoise_ctx, &l);
-            return (int)l.len;
+            linenoise_edit_done(linenoise_ctx, l);
+            return (int)l->len;
 
         case CTRL_C:     /* ctrl-c */
-            return ctrl_c_handler_default(linenoise_ctx, &l);
+            return ctrl_c_handler_default(linenoise_ctx, l);
 
         case BACKSPACE:   /* backspace */
         case CTRL_H:     /* ctrl-h */
-            linenoiseEditBackspace(linenoise_ctx, &l);
+            linenoiseEditBackspace(linenoise_ctx, l);
             break;
 
         case CTRL_D:     /* ctrl-d, remove char at right of cursor, or if the
                             line is empty, act as end-of-file. */
-            if (l.len > 0)
+            if (l->len > 0)
             {
-                linenoiseEditDelete(linenoise_ctx, &l);
+                linenoiseEditDelete(linenoise_ctx, l);
             }
             else
             {
@@ -1240,31 +1255,31 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
             break;
 
         case CTRL_T:    /* ctrl-t, swaps current character with previous. */
-            if (l.pos > 0 && l.pos < l.len)
+            if (l->pos > 0 && l->pos < l->len)
             {
-                int aux = buf[l.pos - 1];
-                buf[l.pos - 1] = buf[l.pos];
-                buf[l.pos] = aux;
-                if (l.pos != l.len - 1)
-                    l.pos++;
-                refreshLine(linenoise_ctx, &l);
+                int aux = buf[l->pos - 1];
+                buf[l->pos - 1] = buf[l->pos];
+                buf[l->pos] = aux;
+                if (l->pos != l->len - 1)
+                    l->pos++;
+                refreshLine(linenoise_ctx, l);
             }
             break;
 
         case CTRL_B:     /* ctrl-b */
-            linenoiseEditMoveLeft(linenoise_ctx, &l);
+            linenoiseEditMoveLeft(linenoise_ctx, l);
             break;
 
         case CTRL_F:     /* ctrl-f */
-            linenoiseEditMoveRight(linenoise_ctx, &l);
+            linenoiseEditMoveRight(linenoise_ctx, l);
             break;
 
         case CTRL_P:    /* ctrl-p */
-            linenoiseEditHistoryNext(linenoise_ctx, &l, LINENOISE_HISTORY_PREV);
+            linenoiseEditHistoryNext(linenoise_ctx, l, LINENOISE_HISTORY_PREV);
             break;
 
         case CTRL_N:    /* ctrl-n */
-            linenoiseEditHistoryNext(linenoise_ctx, &l, LINENOISE_HISTORY_NEXT);
+            linenoiseEditHistoryNext(linenoise_ctx, l, LINENOISE_HISTORY_NEXT);
             break;
 
         case ESC:    /* escape sequence */
@@ -1293,7 +1308,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
                         switch (seq[1])
                         {
                         case '3': /* Delete key. */
-                            linenoiseEditDelete(linenoise_ctx, &l);
+                            linenoiseEditDelete(linenoise_ctx, l);
                             break;
                         }
                     }
@@ -1303,27 +1318,27 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
                     switch (seq[1])
                     {
                     case 'A': /* Up */
-                        linenoiseEditHistoryNext(linenoise_ctx, &l, LINENOISE_HISTORY_PREV);
+                        linenoiseEditHistoryNext(linenoise_ctx, l, LINENOISE_HISTORY_PREV);
                         break;
 
                     case 'B': /* Down */
-                        linenoiseEditHistoryNext(linenoise_ctx, &l, LINENOISE_HISTORY_NEXT);
+                        linenoiseEditHistoryNext(linenoise_ctx, l, LINENOISE_HISTORY_NEXT);
                         break;
 
                     case 'C': /* Right */
-                        linenoiseEditMoveRight(linenoise_ctx, &l);
+                        linenoiseEditMoveRight(linenoise_ctx, l);
                         break;
 
                     case 'D': /* Left */
-                        linenoiseEditMoveLeft(linenoise_ctx, &l);
+                        linenoiseEditMoveLeft(linenoise_ctx, l);
                         break;
 
                     case 'H': /* Home */
-                        linenoiseEditMoveHome(linenoise_ctx, &l);
+                        linenoiseEditMoveHome(linenoise_ctx, l);
                         break;
 
                     case 'F': /* End*/
-                        linenoiseEditMoveEnd(linenoise_ctx, &l);
+                        linenoiseEditMoveEnd(linenoise_ctx, l);
                         break;
                     }
                 }
@@ -1335,50 +1350,50 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
                 switch (seq[1])
                 {
                 case 'H': /* Home */
-                    linenoiseEditMoveHome(linenoise_ctx, &l);
+                    linenoiseEditMoveHome(linenoise_ctx, l);
                     break;
 
                 case 'F': /* End*/
-                    linenoiseEditMoveEnd(linenoise_ctx, &l);
+                    linenoiseEditMoveEnd(linenoise_ctx, l);
                     break;
                 }
             }
             break;
 
         default:
-            if (linenoiseEditInsert(linenoise_ctx, &l, c))
+            if (linenoiseEditInsert(linenoise_ctx, l, c))
                 return -1;
             break;
 
         case CTRL_U: /* Ctrl+u, delete the whole line. */
-            delete_whole_line(linenoise_ctx, &l);
+            delete_whole_line(linenoise_ctx, l);
             break;
 
         case CTRL_K: /* Ctrl+k, delete from current to end of line. */
-            buf[l.pos] = '\0';
-            l.len = l.pos;
-            refreshLine(linenoise_ctx, &l);
+            buf[l->pos] = '\0';
+            l->len = l->pos;
+            refreshLine(linenoise_ctx, l);
             break;
 
         case CTRL_A: /* Ctrl+a, go to the start of the line */
-            linenoiseEditMoveHome(linenoise_ctx, &l);
+            linenoiseEditMoveHome(linenoise_ctx, l);
             break;
 
         case CTRL_E: /* ctrl+e, go to the end of the line */
-            linenoiseEditMoveEnd(linenoise_ctx, &l);
+            linenoiseEditMoveEnd(linenoise_ctx, l);
             break;
 
         case CTRL_L: /* ctrl+l, clear screen */
             linenoiseClearScreen(linenoise_ctx);
-            refreshLine(linenoise_ctx, &l);
+            refreshLine(linenoise_ctx, l);
             break;
 
         case CTRL_W: /* ctrl+w, delete previous word */
-            linenoiseEditDeletePrevWord(linenoise_ctx, &l);
+            linenoiseEditDeletePrevWord(linenoise_ctx, l);
             break;
         }
     }
-    return l.len;
+    return l->len;
 }
 
 #ifdef LINENOISE_PRINT_KEY_CODES_SUPPORT

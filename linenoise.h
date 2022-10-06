@@ -58,6 +58,8 @@ void linenoiseSetHintsCallback(linenoise_st * linenoise_ctx, linenoiseHintsCallb
 void linenoiseSetFreeHintsCallback(linenoise_st * linenoise_ctx, linenoiseFreeHintsCallback * cb);
 void linenoiseAddCompletion(linenoiseCompletions * completions, const char * completion);
 linenoiseCompletions * linenoise_completions_get(linenoise_st * linenoise_ctx);
+char const * linenoise_line_get(linenoise_st * linenoise_ctx);
+size_t linenoise_point_get(linenoise_st * linenoise_ctx);
 
 typedef bool (*key_binding_handler_cb)(linenoise_st * linenoise_ctx, char key, void * user_ctx);
 void linenoise_bind_key(linenoise_st * linenoise_ctx, uint8_t key, key_binding_handler_cb handler, void * user_ctx);
