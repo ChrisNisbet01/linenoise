@@ -985,6 +985,45 @@ static void linenoiseEditDeletePrevWord(linenoise_st * const linenoise_ctx,
     refreshLine(linenoise_ctx, l);
 }
 
+static void
+delete_whole_line(linenoise_st * const linenoise_ctx, struct linenoiseState *l)
+{
+    l->buf[0] = '\0';
+    l->pos = l->len = 0;
+    refreshLine(linenoise_ctx, l);
+}
+
+static void
+linenoise_edit_done(linenoise_st * const linenoise_ctx, struct linenoiseState *l)
+{
+    linenoise_ctx->history.current_len--;
+    free(linenoise_ctx->history.history[linenoise_ctx->history.current_len]);
+    if (linenoise_ctx->options.mlmode)
+    {
+        linenoiseEditMoveEnd(linenoise_ctx, l);
+    }
+    if (linenoise_ctx->options.hintsCallback != NULL)
+    {
+        /*
+         * Force a refresh without hints to leave the previous
+         * line as the user typed it after a newline.*
+         */
+        linenoiseHintsCallback * const hc = linenoise_ctx->options.hintsCallback;
+        linenoise_ctx->options.hintsCallback = NULL;
+        refreshLine(linenoise_ctx, l);
+        linenoise_ctx->options.hintsCallback = hc;
+    }
+}
+
+static int
+ctrl_c_handler_default(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
+{
+    delete_whole_line(linenoise_ctx, l);
+    linenoise_edit_done(linenoise_ctx, l);
+    return (int)l->len;
+}
+
+
 /* This function is the core of the line editing capability of linenoise.
  * It expects 'fd' to be already in "raw mode" so that every key pressed
  * will be returned ASAP to read().
@@ -1052,31 +1091,14 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
         switch (c)
         {
         case ENTER:    /* enter */
-            linenoise_ctx->history.current_len--;
-            free(linenoise_ctx->history.history[linenoise_ctx->history.current_len]);
-            if (linenoise_ctx->options.mlmode)
-            {
-                linenoiseEditMoveEnd(linenoise_ctx, &l);
-            }
-            if (linenoise_ctx->options.hintsCallback != NULL)
-            {
-                /*
-                 * Force a refresh without hints to leave the previous
-                 * line as the user typed it after a newline.*
-                 */
-                linenoiseHintsCallback * const hc = linenoise_ctx->options.hintsCallback;
-                linenoise_ctx->options.hintsCallback = NULL;
-                refreshLine(linenoise_ctx, &l);
-                linenoise_ctx->options.hintsCallback = hc;
-            }
+            linenoise_edit_done(linenoise_ctx, &l);
             return (int)l.len;
 
         case CTRL_C:     /* ctrl-c */
-            errno = EAGAIN;
-            return -1;
+            return ctrl_c_handler_default(linenoise_ctx, &l);
 
         case BACKSPACE:   /* backspace */
-        case 8:     /* ctrl-h */
+        case CTRL_H:     /* ctrl-h */
             linenoiseEditBackspace(linenoise_ctx, &l);
             break;
 
@@ -1206,9 +1228,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
             break;
 
         case CTRL_U: /* Ctrl+u, delete the whole line. */
-            buf[0] = '\0';
-            l.pos = l.len = 0;
-            refreshLine(linenoise_ctx, &l);
+            delete_whole_line(linenoise_ctx, &l);
             break;
 
         case CTRL_K: /* Ctrl+k, delete from current to end of line. */
