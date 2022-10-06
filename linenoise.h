@@ -70,6 +70,9 @@ void linenoisePrintKeyCodes(linenoise_st * linenoise);
 void linenoiseMaskModeEnable(void);
 void linenoiseMaskModeDisable(void);
 
+void
+linenoiseBeepControl(linenoise_st * linenoise, bool enable);
+
 struct linenoise_st *
 linenoise_new(FILE * in_stream, FILE * out_stream);
 

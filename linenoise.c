@@ -128,6 +128,11 @@ struct linenoise_st
     int out_fd;
 
     bool in_raw_mode;
+
+    struct
+    {
+        bool disable_beep;
+    } options;
 };
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
@@ -357,10 +362,18 @@ void linenoiseClearScreen(void) {
 /* Beep, used for completion when there is nothing to complete or when all
  * the choices were already shown. */
 static void linenoiseBeep(void) {
-    fprintf(stderr, "\x7");
-    fflush(stderr);
+    if (!linenoise_global->options.disable_beep)
+    {
+        fprintf(stderr, "\x7");
+        fflush(stderr);
+    }
 }
 
+void
+linenoiseBeepControl(linenoise_st * const linenoise, bool const enable)
+{
+    linenoise->options.disable_beep = !enable;
+}
 /* ============================== Completion ================================ */
 
 /* Free a list of completion option populated by linenoiseAddCompletion(). */
