@@ -62,11 +62,18 @@ char *linenoise(linenoise_st * linenoise_ctx, const char *prompt);
 void linenoiseFree(void *ptr);
 int linenoiseHistoryAdd(const char *line);
 int linenoiseHistorySetMaxLen(int len);
+
+#ifdef LINENOISE_HISTORY_FILE_SUPPORT
 int linenoiseHistorySave(const char *filename);
 int linenoiseHistoryLoad(const char *filename);
+#endif
+
 void linenoiseClearScreen(linenoise_st * linenoise_ctx);
 void linenoiseSetMultiLine(int ml);
+
+#ifdef LINENOISE_PRINT_KEY_CODES_SUPPORT
 void linenoisePrintKeyCodes(linenoise_st * linenoise_ctx);
+#endif
 void linenoiseMaskModeEnable(void);
 void linenoiseMaskModeDisable(void);
 

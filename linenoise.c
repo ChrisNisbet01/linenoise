@@ -1199,6 +1199,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
     return l.len;
 }
 
+#ifdef LINENOISE_PRINT_KEY_CODES_SUPPORT
 /* This special mode is used by linenoise in order to print scan codes
  * on screen for debugging / development purposes. It is implemented
  * by the linenoise_example program using the --keycodes option. */
@@ -1231,6 +1232,7 @@ void linenoisePrintKeyCodes(linenoise_st * const linenoise_ctx)
     }
     disableRawMode(linenoise_ctx, linenoise_ctx->in_fd);
 }
+#endif
 
 /* This function calls the line editing function linenoiseEdit() using
  * the in_fd file descriptor set in raw mode. */
@@ -1456,6 +1458,7 @@ int linenoiseHistorySetMaxLen(int len)
     return 1;
 }
 
+#ifdef LINENOISE_HISTORY_FILE_SUPPORT
 /* Save the history in the specified file. On success 0 is returned
  * otherwise -1 is returned. */
 int linenoiseHistorySave(const char * filename)
@@ -1502,6 +1505,7 @@ int linenoiseHistoryLoad(const char * filename)
     fclose(fp);
     return 0;
 }
+#endif
 
 struct linenoise_st *
 linenoise_new(FILE * const in_stream, FILE * const out_stream)
