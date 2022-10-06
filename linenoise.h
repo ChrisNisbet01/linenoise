@@ -43,6 +43,8 @@
 extern "C" {
 #endif
 
+typedef struct linenoise_st linenoise_st;
+
 typedef struct linenoiseCompletions {
   size_t len;
   char **cvec;
@@ -64,9 +66,15 @@ int linenoiseHistorySave(const char *filename);
 int linenoiseHistoryLoad(const char *filename);
 void linenoiseClearScreen(void);
 void linenoiseSetMultiLine(int ml);
-void linenoisePrintKeyCodes(void);
+void linenoisePrintKeyCodes(linenoise_st * linenoise);
 void linenoiseMaskModeEnable(void);
 void linenoiseMaskModeDisable(void);
+
+struct linenoise_st *
+linenoise_new(FILE * in_stream, FILE * out_stream);
+
+void
+linenoise_delete(linenoise_st * linenoise);
 
 #ifdef __cplusplus
 }

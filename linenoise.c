@@ -105,6 +105,7 @@
 
 #include <termios.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -117,18 +118,31 @@
 #include <unistd.h>
 #include "linenoise.h"
 
+struct linenoise_st
+{
+    bool is_a_tty;
+
+    FILE * in_stream;
+    int in_fd;
+    FILE * out_stream;
+    int out_fd;
+
+    bool in_raw_mode;
+};
+
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
 #define LINENOISE_MAX_LINE 4096
 static char *unsupported_term[] = {"dumb","cons25","emacs",NULL};
+
+struct linenoise_st * linenoise_global;
+
 static linenoiseCompletionCallback *completionCallback = NULL;
 static linenoiseHintsCallback *hintsCallback = NULL;
 static linenoiseFreeHintsCallback *freeHintsCallback = NULL;
 
 static struct termios orig_termios; /* In order to restore at exit.*/
 static int maskmode = 0; /* Show "***" instead of input. For passwords. */
-static int rawmode = 0; /* For atexit() function to check if restore is needed*/
 static int mlmode = 0;  /* Multi line mode. Default is single line. */
-static int atexit_registered = 0; /* Register atexit just 1 time. */
 static int history_max_len = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
 static int history_len = 0;
 static char **history = NULL;
@@ -173,9 +187,8 @@ enum KEY_ACTION{
 	BACKSPACE =  127    /* Backspace */
 };
 
-static void linenoiseAtExit(void);
 int linenoiseHistoryAdd(const char *line);
-static void refreshLine(struct linenoiseState *l);
+static bool refreshLine(struct linenoiseState *l);
 
 /* Debugging macro. */
 #if 0
@@ -232,11 +245,8 @@ static int isUnsupportedTerm(void) {
 static int enableRawMode(int fd) {
     struct termios raw;
 
-    if (!isatty(STDIN_FILENO)) goto fatal;
-    if (!atexit_registered) {
-        atexit(linenoiseAtExit);
-        atexit_registered = 1;
-    }
+    if (!isatty(fd)) goto fatal;
+
     if (tcgetattr(fd,&orig_termios) == -1) goto fatal;
 
     raw = orig_termios;  /* modify the original mode */
@@ -255,8 +265,12 @@ static int enableRawMode(int fd) {
     raw.c_cc[VMIN] = 1; raw.c_cc[VTIME] = 0; /* 1 byte, no timer */
 
     /* put terminal in raw mode after flushing */
-    if (tcsetattr(fd,TCSAFLUSH,&raw) < 0) goto fatal;
-    rawmode = 1;
+    if (tcsetattr(fd, TCSAFLUSH, &raw) < 0)
+    {
+        goto fatal;
+    }
+
+    linenoise_global->in_raw_mode = true;
     return 0;
 
 fatal:
@@ -266,8 +280,10 @@ fatal:
 
 static void disableRawMode(int fd) {
     /* Don't even check the return value as it's too late. */
-    if (rawmode && tcsetattr(fd,TCSAFLUSH,&orig_termios) != -1)
-        rawmode = 0;
+    if (linenoise_global->in_raw_mode && tcsetattr(fd, TCSAFLUSH, &orig_termios) != -1)
+    {
+        linenoise_global->in_raw_mode = false;
+    }
 }
 
 /* Use the ESC [6n escape sequence to query the horizontal cursor position
@@ -332,7 +348,8 @@ failed:
 
 /* Clear the screen. Used to handle ctrl+l */
 void linenoiseClearScreen(void) {
-    if (write(STDOUT_FILENO,"\x1b[H\x1b[2J",7) <= 0) {
+    if (write(linenoise_global->out_fd, "\x1b[H\x1b[2J", 7) <= 0)
+    {
         /* nothing to do, just to avoid warning. */
     }
 }
@@ -400,7 +417,10 @@ static int completeLine(struct linenoiseState *ls) {
                     break;
                 case 27: /* escape */
                     /* Re-show original buffer */
-                    if (i < lc.len) refreshLine(ls);
+                    if (i < lc.len)
+                    {
+                        refreshLine(ls);
+                    }
                     stop = 1;
                     break;
                 default:
@@ -515,7 +535,9 @@ static void refreshShowHints(struct abuf *ab, struct linenoiseState *l, int plen
  *
  * Rewrite the currently edited line accordingly to the buffer content,
  * cursor position, and number of columns of the terminal. */
-static void refreshSingleLine(struct linenoiseState *l) {
+static bool
+refreshSingleLine(struct linenoiseState *l) {
+    bool success = true;
     char seq[64];
     size_t plen = strlen(l->prompt);
     int fd = l->ofd;
@@ -552,8 +574,12 @@ static void refreshSingleLine(struct linenoiseState *l) {
     /* Move cursor to original position. */
     snprintf(seq,64,"\r\x1b[%dC", (int)(pos+plen));
     abAppend(&ab,seq,strlen(seq));
-    if (write(fd,ab.b,ab.len) == -1) {} /* Can't recover from write error. */
+    if (write(fd,ab.b,ab.len) == -1) {
+        success = false;
+    } /* Can't recover from write error. */
     abFree(&ab);
+
+    return success;
 }
 
 /* Multi line low level line refresh.
@@ -650,11 +676,19 @@ static void refreshMultiLine(struct linenoiseState *l) {
 
 /* Calls the two low level functions refreshSingleLine() or
  * refreshMultiLine() according to the selected mode. */
-static void refreshLine(struct linenoiseState *l) {
+static bool refreshLine(struct linenoiseState *l) {
+    bool success;
     if (mlmode)
+    {
         refreshMultiLine(l);
+        success = true;
+    }
     else
-        refreshSingleLine(l);
+    {
+        success = refreshSingleLine(l);
+    }
+
+    return success;
 }
 
 /* Insert the character 'c' at cursor current position.
@@ -841,10 +875,15 @@ static int linenoiseEdit(int stdin_fd, int stdout_fd, char *buf, size_t buflen, 
         case ENTER:    /* enter */
             history_len--;
             free(history[history_len]);
-            if (mlmode) linenoiseEditMoveEnd(&l);
+            if (mlmode)
+            {
+                linenoiseEditMoveEnd(&l);
+            }
             if (hintsCallback) {
-                /* Force a refresh without hints to leave the previous
-                 * line as the user typed it after a newline. */
+                /*
+                 * Force a refresh without hints to leave the previous
+                 * line as the user typed it after a newline.*
+                 */
                 linenoiseHintsCallback *hc = hintsCallback;
                 hintsCallback = NULL;
                 refreshLine(&l);
@@ -978,18 +1017,19 @@ static int linenoiseEdit(int stdin_fd, int stdout_fd, char *buf, size_t buflen, 
 /* This special mode is used by linenoise in order to print scan codes
  * on screen for debugging / development purposes. It is implemented
  * by the linenoise_example program using the --keycodes option. */
-void linenoisePrintKeyCodes(void) {
+void linenoisePrintKeyCodes(linenoise_st * const linenoise) {
     char quit[4];
 
     printf("Linenoise key codes debugging mode.\n"
             "Press keys to see scan codes. Type 'quit' at any time to exit.\n");
-    if (enableRawMode(STDIN_FILENO) == -1) return;
+    if (enableRawMode(linenoise->in_fd) == -1)
+        return;
     memset(quit,' ',4);
     while(1) {
         char c;
         int nread;
 
-        nread = read(STDIN_FILENO,&c,1);
+        nread = read(linenoise->in_fd,&c,1);
         if (nread <= 0) continue;
         memmove(quit,quit+1,sizeof(quit)-1); /* shift string to left. */
         quit[sizeof(quit)-1] = c; /* Insert current char on the right. */
@@ -998,13 +1038,13 @@ void linenoisePrintKeyCodes(void) {
         printf("'%c' %02x (%d) (type quit to exit)\n",
             isprint(c) ? c : '?', (int)c, (int)c);
         printf("\r"); /* Go left edge manually, we are in raw mode. */
-        fflush(stdout);
+        fflush(linenoise->out_stream);
     }
-    disableRawMode(STDIN_FILENO);
+    disableRawMode(linenoise->in_fd);
 }
 
 /* This function calls the line editing function linenoiseEdit() using
- * the STDIN file descriptor set in raw mode. */
+ * the in_fd file descriptor set in raw mode. */
 static int linenoiseRaw(char *buf, size_t buflen, const char *prompt) {
     int count;
 
@@ -1013,10 +1053,14 @@ static int linenoiseRaw(char *buf, size_t buflen, const char *prompt) {
         return -1;
     }
 
-    if (enableRawMode(STDIN_FILENO) == -1) return -1;
-    count = linenoiseEdit(STDIN_FILENO, STDOUT_FILENO, buf, buflen, prompt);
-    disableRawMode(STDIN_FILENO);
-    printf("\n");
+    if (enableRawMode(linenoise_global->in_fd) == -1)
+    {
+        return -1;
+    }
+    count = linenoiseEdit(linenoise_global->in_fd, linenoise_global->out_fd, buf, buflen, prompt);
+    disableRawMode(linenoise_global->in_fd);
+    fprintf(linenoise_global->out_stream, "\n");
+
     return count;
 }
 
@@ -1040,7 +1084,7 @@ static char *linenoiseNoTTY(void) {
                 return NULL;
             }
         }
-        int c = fgetc(stdin);
+        int c = fgetc(linenoise_global->in_stream);
         if (c == EOF || c == '\n') {
             if (c == EOF && len == 0) {
                 free(line);
@@ -1065,16 +1109,21 @@ char *linenoise(const char *prompt) {
     char buf[LINENOISE_MAX_LINE];
     int count;
 
-    if (!isatty(STDIN_FILENO)) {
+    if (!linenoise_global->is_a_tty)
+    {
         /* Not a tty: read from file / pipe. In this mode we don't want any
          * limit to the line size, so we call a function to handle that. */
         return linenoiseNoTTY();
     } else if (isUnsupportedTerm()) {
         size_t len;
 
-        printf("%s",prompt);
-        fflush(stdout);
-        if (fgets(buf,LINENOISE_MAX_LINE,stdin) == NULL) return NULL;
+        fprintf(linenoise_global->out_stream, "%s", prompt);
+        fflush(linenoise_global->out_stream);
+
+        if (fgets(buf, LINENOISE_MAX_LINE, linenoise_global->in_stream) == NULL)
+        {
+            return NULL;
+        }
         len = strlen(buf);
         while(len && (buf[len-1] == '\n' || buf[len-1] == '\r')) {
             len--;
@@ -1108,12 +1157,6 @@ static void freeHistory(void) {
             free(history[j]);
         free(history);
     }
-}
-
-/* At exit we'll try to fix the terminal to the initial conditions. */
-static void linenoiseAtExit(void) {
-    disableRawMode(STDIN_FILENO);
-    freeHistory();
 }
 
 /* This is the API call to add a new entry in the linenoise history.
@@ -1223,3 +1266,47 @@ int linenoiseHistoryLoad(const char *filename) {
     fclose(fp);
     return 0;
 }
+
+struct linenoise_st *
+linenoise_new(FILE * const in_stream, FILE * const out_stream)
+{
+    struct linenoise_st * const linenoise = calloc(1, sizeof *linenoise);
+
+    if (linenoise == NULL)
+    {
+        goto done;
+    }
+
+    linenoise->in_stream = in_stream;
+    linenoise->in_fd = fileno(in_stream);
+    linenoise->is_a_tty = isatty(linenoise->in_fd);
+
+    linenoise->out_stream = out_stream;
+    linenoise->out_fd = fileno(out_stream);
+
+    /* temp debug refer to a global until the context is passed around as needed. */
+    linenoise_global = linenoise;
+
+done:
+    return linenoise;
+}
+
+void
+linenoise_delete(linenoise_st * const linenoise)
+{
+    if (linenoise == NULL)
+    {
+        goto done;
+    }
+    if (linenoise->in_raw_mode)
+    {
+        disableRawMode(linenoise->in_fd);
+    }
+    freeHistory();
+
+    free(linenoise);
+
+done:
+    return;
+}
+
