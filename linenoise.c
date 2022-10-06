@@ -1079,6 +1079,43 @@ ctrl_c_handler_default(linenoise_st * const linenoise_ctx, struct linenoiseState
 }
 
 
+static void
+display_matches(
+    linenoise_st * const linenoise_ctx,
+    linenoiseCompletions * const lc)
+{
+	size_t max;
+    size_t c;
+    size_t cols;
+
+	/* find maximum completion length */
+	max = 0;
+    for (size_t i = 0; i < lc->len; i++)
+    {
+        char const * const m = lc->cvec[i];
+		size_t size = strlen(m);
+        if (max < size)
+        {
+			max = size;
+        }
+	}
+
+	/* allow for a space between words */
+	cols = getColumns(linenoise_ctx->in.fd, linenoise_ctx->out.fd) / (max + 1);
+
+    fprintf(linenoise_ctx->out.stream, "\r\n");
+	/* print out a table of completions */
+    for (size_t i = 0; i < lc->len; i++)
+    {
+        for (c = 0; c < cols && i < lc->len; c++, i++)
+        {
+            char const * const m = lc->cvec[i];
+            fprintf(linenoise_ctx->out.stream, "%-*s ", (int)max, m);
+        }
+		fprintf(linenoise_ctx->out.stream, "\r\n");
+	}
+}
+
 /* This function is the core of the line editing capability of linenoise.
  * It expects 'fd' to be already in "raw mode" so that every key pressed
  * will be returned ASAP to read().
@@ -1152,7 +1189,8 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
 
             if (linenoise_ctx->completions->len > 0)
             {
-                print_completions(linenoise_ctx, &l, linenoise_ctx->completions);
+                display_matches(linenoise_ctx, linenoise_ctx->completions);
+                refreshLine(linenoise_ctx, &l);
             }
 
             linenoise_completions_free(linenoise_ctx->completions);
