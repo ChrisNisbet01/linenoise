@@ -43,6 +43,8 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
+
 typedef struct linenoise_st linenoise_st;
 
 typedef struct linenoiseCompletions {
@@ -60,8 +62,8 @@ void linenoiseAddCompletion(linenoiseCompletions * completions, const char * com
 
 char *linenoise(linenoise_st * linenoise_ctx, const char *prompt);
 void linenoiseFree(void *ptr);
-int linenoiseHistoryAdd(const char *line);
-int linenoiseHistorySetMaxLen(int len);
+int linenoiseHistoryAdd(linenoise_st * linenoise_ctx, const char *line);
+int linenoiseHistorySetMaxLen(linenoise_st * linenoise_ctx, int len);
 
 #ifdef LINENOISE_HISTORY_FILE_SUPPORT
 int linenoiseHistorySave(const char *filename);
@@ -69,13 +71,13 @@ int linenoiseHistoryLoad(const char *filename);
 #endif
 
 void linenoiseClearScreen(linenoise_st * linenoise_ctx);
-void linenoiseSetMultiLine(int ml);
+void linenoiseSetMultiLine(linenoise_st * linenoise_ctx, bool ml);
 
 #ifdef LINENOISE_PRINT_KEY_CODES_SUPPORT
 void linenoisePrintKeyCodes(linenoise_st * linenoise_ctx);
 #endif
-void linenoiseMaskModeEnable(void);
-void linenoiseMaskModeDisable(void);
+void linenoiseMaskModeEnable(linenoise_st * linenoise_ctx);
+void linenoiseMaskModeDisable(linenoise_st * linenoise_ctx);
 
 void
 linenoiseBeepControl(linenoise_st * linenoise_ctx, bool enable);
