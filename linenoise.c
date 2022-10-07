@@ -766,7 +766,7 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     int rows = (plen + l->len + l->cols - 1) / l->cols; /* rows used by current buf. */
     int rpos = (plen + l->oldpos + l->cols) / l->cols; /* cursor relative row. */
     int rpos2; /* rpos after refresh. */
-    int col; /* colum position, zero-based. */
+    int col; /* column position, zero-based. */
     int old_rows = l->maxrows;
     int const fd = linenoise_ctx->out.fd;
     struct abuf ab;
@@ -895,38 +895,53 @@ static int linenoiseEditInsert(linenoise_st * const linenoise_ctx,
 {
     if (l->len < l->buflen)
     {
-        if (l->len == l->pos)
+        bool require_full_refresh = true;
+
+        if (l->len == l->pos) /* Cursor is at the end of the line. */
         {
-            l->buf[l->pos] = c;
-            l->pos++;
-            l->len++;
-            l->buf[l->len] = '\0';
-            if (!linenoise_ctx->options.mlmode
-                && (l->prompt_len + l->len) < l->cols
-                && linenoise_ctx->options.hintsCallback == NULL)
+            if (linenoise_ctx->options.mlmode)
             {
-                /* Avoid a full update of the line in the trivial case. */
-                char const d = linenoise_ctx->options.maskmode ? '*' : c;
-                if (write(linenoise_ctx->out.fd, &d, 1) == -1)
+                unsigned const old_rows = (l->prompt_len + l->len) / l->cols;
+                unsigned const new_rows = (l->prompt_len + l->len + 1) / l->cols;
+                if (old_rows == 0 && old_rows == new_rows)
                 {
-                    return -1;
+                    require_full_refresh = false;
                 }
             }
             else
             {
-                refreshLine(linenoise_ctx, l);
+                if ((l->prompt_len + l->len + 1) < l->cols)
+                {
+                    require_full_refresh = false;
+                }
             }
+        }
+
+        /* Insert the new char into the line buffer. */
+        if (l->len != l->pos)
+        {
+            memmove(l->buf + l->pos + 1, l->buf + l->pos, l->len - l->pos);
+        }
+        l->buf[l->pos] = c;
+        l->len++;
+        l->pos++;
+        l->buf[l->len] = '\0';
+
+        if (require_full_refresh)
+        {
+            refreshLine(linenoise_ctx, l);
         }
         else
         {
-            memmove(l->buf + l->pos + 1, l->buf + l->pos, l->len - l->pos);
-            l->buf[l->pos] = c;
-            l->len++;
-            l->pos++;
-            l->buf[l->len] = '\0';
-            refreshLine(linenoise_ctx, l);
+            /* Avoid a full update of the line in the trivial case. */
+            char const d = linenoise_ctx->options.maskmode ? '*' : c;
+            if (write(linenoise_ctx->out.fd, &d, 1) == -1)
+            {
+                return -1;
+            }
         }
     }
+
     return 0;
 }
 
@@ -1056,7 +1071,8 @@ static void
 delete_whole_line(linenoise_st * const linenoise_ctx, struct linenoiseState *l)
 {
     l->buf[0] = '\0';
-    l->pos = l->len = 0;
+    l->pos = 0;
+    l->len = 0;
     refreshLine(linenoise_ctx, l);
 }
 
