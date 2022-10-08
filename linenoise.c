@@ -1751,6 +1751,11 @@ bool linenoise_insert_text_len(linenoise_st * const linenoise_ctx,
 		}
 	}
 #endif
+    if ((ls->len + delta) >= ls->buflen)
+    {
+        // TODO: Grow the buffer.
+        return false;
+    }
 
 	if (ls->pos < ls->len) {
 		/* move the current text to the right (including the terminator) */
