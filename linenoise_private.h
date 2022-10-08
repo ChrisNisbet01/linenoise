@@ -85,3 +85,7 @@ getColumns(int ifd, int ofd);
 bool
 refreshLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l);
 
+int linenoiseEditInsert(linenoise_st * const linenoise_ctx,
+                        struct linenoiseState * l,
+                        char c);
+

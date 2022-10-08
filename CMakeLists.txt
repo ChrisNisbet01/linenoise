@@ -14,7 +14,7 @@ endif(WITH_KEY_BINDING)
 
 configure_file(config.h.in ${PROJECT_BINARY_DIR}/config.h)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wmissing-prototypes -Werror")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall -Wmissing-prototypes -Werror")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
 
 add_library(linenoise 
