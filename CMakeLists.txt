@@ -2,10 +2,15 @@ cmake_minimum_required(VERSION 3.18)
 project(linenoise C)
 
 OPTION(WITH_HINTS "Support hints" ON)
+OPTION(WITH_KEY_BINDING "Support key binding" OFF)
 
 if(WITH_HINTS)
   set (BUILD_WITH_HINTS 1)
 endif(WITH_HINTS)
+
+if(WITH_KEY_BINDING)
+  set (BUILD_WITH_KEY_BINDING 1)
+endif(WITH_KEY_BINDING)
 
 configure_file(config.h.in ${PROJECT_BINARY_DIR}/config.h)
 
@@ -20,6 +25,7 @@ add_library(linenoise
   linenoise_private.h
   linenoise_hints.c
   linenoise_hints.h
+  linenoise_key_binding.c
 )
 target_include_directories(linenoise 
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}

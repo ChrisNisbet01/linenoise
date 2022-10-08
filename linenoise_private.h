@@ -53,7 +53,9 @@ struct linenoise_st
     bool in_raw_mode;
     struct termios orig_termios;
 
+#ifdef WITH_KEY_BINDING
     key_binding_st key_bindings[256]; /* One for each character. */
+#endif
 
     struct linenoiseState state;
 
@@ -76,4 +78,10 @@ struct linenoise_st
         char ** history;
     } history;
 };
+
+int
+getColumns(int ifd, int ofd);
+
+bool
+refreshLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l);
 

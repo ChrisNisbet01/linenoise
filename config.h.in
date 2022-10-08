@@ -2,6 +2,7 @@
 #define LINENOISE_CONFIG_H__
 
 #cmakedefine WITH_HINTS @BUILD_WITH_HINTS@
+#cmakedefine WITH_KEY_BINDING @BUILD_WITH_KEY_BINDING@
 
 #endif /* LINENOISE_CONFIG_H__ */
 
