@@ -57,7 +57,7 @@ void linenoiseSetCompletionCallback(linenoise_st * linenoise_ctx, linenoiseCompl
 void linenoiseSetHintsCallback(linenoise_st * linenoise_ctx, linenoiseHintsCallback * cb);
 void linenoiseSetFreeHintsCallback(linenoise_st * linenoise_ctx, linenoiseFreeHintsCallback * cb);
 void linenoiseAddCompletion(linenoiseCompletions * completions, const char * completion);
-linenoiseCompletions * linenoise_completions_get(linenoise_st * linenoise_ctx);
+
 char * linenoise_line_get(linenoise_st * linenoise_ctx);
 size_t linenoise_point_get(linenoise_st * linenoise_ctx);
 

@@ -247,32 +247,6 @@ freeCompletions(linenoiseCompletions * const lc)
         free(lc->cvec);
 }
 
-static linenoiseCompletions *
-linenoise_completions_new(void)
-{
-    linenoiseCompletions * lc;
-
-    lc = calloc(1, sizeof *lc);
-
-    return lc;
-}
-
-static void
-linenoise_completions_free(linenoiseCompletions * const lc)
-{
-    if (lc != NULL)
-    {
-        freeCompletions(lc);
-        free(lc);
-    }
-}
-
-linenoiseCompletions *
-linenoise_completions_get(linenoise_st * const linenoise_ctx)
-{
-    return linenoise_ctx->completions;
-}
-
 char * linenoise_line_get(linenoise_st * linenoise_ctx)
 {
     return linenoise_ctx->state.buf;
@@ -1195,12 +1169,6 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
         {
             size_t const index = (unsigned)c;
 
-            if (linenoise_ctx->completions != NULL)
-            {
-                linenoise_completions_free(linenoise_ctx->completions);
-            }
-            linenoise_ctx->completions = linenoise_completions_new();
-
             bool const res = linenoise_ctx->key_bindings[index].handler(
                     linenoise_ctx,
                     c,
@@ -1211,14 +1179,6 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
                 fprintf(stderr, "failed\n");
             }
 
-            if (linenoise_ctx->completions->len > 0)
-            {
-                //display_matches(linenoise_ctx, linenoise_ctx->completions);
-                //refreshLine(linenoise_ctx, l);
-            }
-
-            linenoise_completions_free(linenoise_ctx->completions);
-            linenoise_ctx->completions = NULL;
             continue;
         }
         /* Only autocomplete when the callback is set. It returns < 0 when
