@@ -103,11 +103,16 @@
  *
  */
 
-#include <termios.h>
+#include "linenoise.h"
+#include "linenoise_private.h"
+#include "buffer.h"
+#ifdef WITH_HINTS
+#include "linenoise_hints.h"
+#endif
+
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -116,82 +121,8 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include "linenoise.h"
 
 
-struct linenoiseCompletions {
-  size_t len;
-  char **cvec;
-};
-
-typedef struct key_binding_st
-{
-    void * user_ctx;
-    key_binding_handler_cb handler;
-} key_binding_st;
-
-/* The linenoiseState structure represents the state during line editing.
- * We pass this state to functions implementing specific editing
- * functionalities. */
-struct linenoiseState
-{
-    char * buf;          /* Edited line buffer. */
-    size_t buflen;       /* Edited line buffer size. */
-    char const * prompt; /* Prompt to display. */
-    size_t prompt_len;   /* Prompt length. */
-    size_t pos;          /* Current cursor position. */
-    size_t oldpos;       /* Previous refresh cursor position. */
-    size_t len;          /* Current edited line length. */
-    size_t cols;         /* Number of columns in terminal. */
-    size_t maxrows;      /* Maximum num of rows used so far (multiline mode) */
-    int history_index;   /* The history index we are currently editing. */
-};
-
-struct linenoise_st
-{
-    struct
-    {
-        FILE * stream;
-        int fd;
-    } in;
-    struct
-    {
-        FILE * stream;
-        int fd;
-    } out;
-
-    bool is_a_tty;
-    bool in_raw_mode;
-    struct termios orig_termios;
-
-    key_binding_st key_bindings[256]; /* One for each character. */
-    linenoiseCompletions * completions;
-
-    struct linenoiseState state;
-
-    struct
-    {
-        bool maskmode;
-        bool mlmode;
-        bool disable_beep;
-        linenoiseCompletionCallback * completionCallback;
-#ifdef WITH_HINTS
-        linenoiseHintsCallback * hintsCallback;
-        linenoiseFreeHintsCallback * freeHintsCallback;
-#endif
-    } options;
-
-    struct
-    {
-        int max_len;
-        int current_len;
-        char ** history;
-    } history;
-};
-
-#define DEFAULT_TERMINAL_WIDTH 80
-#define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
-#define LINENOISE_MAX_LINE 4096
 static char * unsupported_term[] = { "dumb", "cons25", "emacs", NULL };
 
 enum KEY_ACTION
@@ -557,24 +488,6 @@ void linenoiseSetCompletionCallback(linenoise_st * const linenoise_ctx,
     linenoise_ctx->options.completionCallback = fn;
 }
 
-#ifdef WITH_HINTS
-/* Register a hits function to be called to show hits to the user at the
- * right of the prompt. */
-void linenoiseSetHintsCallback(linenoise_st * const linenoise_ctx,
-                               linenoiseHintsCallback * const fn)
-{
-    linenoise_ctx->options.hintsCallback = fn;
-}
-
-/* Register a function to free the hints returned by the hints callback
- * registered with linenoiseSetHintsCallback(). */
-void linenoiseSetFreeHintsCallback(linenoise_st * const linenoise_ctx,
-                                   linenoiseFreeHintsCallback * const fn)
-{
-    linenoise_ctx->options.freeHintsCallback = fn;
-}
-#endif
-
 /* This function is used by the callback function registered by the user
  * in order to add completion options given the input string when the
  * user typed <tab>. See the example.c source code for a very easy to
@@ -597,80 +510,6 @@ void linenoiseAddCompletion(linenoiseCompletions * lc, const char * str)
     lc->cvec = cvec;
     lc->cvec[lc->len++] = copy;
 }
-
-/* =========================== Line editing ================================= */
-
-/* We define a very simple "append buffer" structure, that is an heap
- * allocated string where we can append to. This is useful in order to
- * write all the escape sequences in a buffer and flush them to the standard
- * output in a single call, to avoid flickering effects. */
-struct abuf
-{
-    char * b;
-    int len;
-};
-
-static void abInit(struct abuf * ab)
-{
-    ab->b = NULL;
-    ab->len = 0;
-}
-
-static void abAppend(struct abuf * ab, const char * s, int len)
-{
-    char * new = realloc(ab->b, ab->len + len);
-
-    if (new == NULL)
-        return;
-    memcpy(new + ab->len, s, len);
-    ab->b = new;
-    ab->len += len;
-}
-
-static void abFree(struct abuf * ab)
-{
-    free(ab->b);
-}
-
-#ifdef WITH_HINTS
-/* Helper of refreshSingleLine() and refreshMultiLine() to show hints
- * to the right of the prompt. */
-static void refreshShowHints(linenoise_st * const linenoise_ctx,
-                             struct abuf * ab,
-                             struct linenoiseState * l, int plen)
-{
-    char seq[64];
-    if (linenoise_ctx->options.hintsCallback && plen + l->len < l->cols)
-    {
-        int color = -1, bold = 0;
-        char * hint = linenoise_ctx->options.hintsCallback(l->buf, &color, &bold);
-        if (hint)
-        {
-            int hintlen = strlen(hint);
-            int hintmaxlen = l->cols - (plen + l->len);
-            if (hintlen > hintmaxlen)
-                hintlen = hintmaxlen;
-            if (bold == 1 && color == -1)
-                color = 37;
-            if (color != -1 || bold != 0)
-            {
-                snprintf(seq, sizeof seq, "\033[%d;%d;49m", bold, color);
-            }
-            else
-            {
-                seq[0] = '\0';
-            }
-            abAppend(ab, seq, strlen(seq));
-            abAppend(ab, hint, hintlen);
-            if (color != -1 || bold != 0)
-                abAppend(ab, "\033[0m", 4);
-            /* Call the function to free the hint returned. */
-            if (linenoise_ctx->options.freeHintsCallback)
-                linenoise_ctx->options.freeHintsCallback(hint);
-        }
-    }
-}
-#endif
 
 /* Single line low level line refresh.
  *
@@ -699,38 +538,38 @@ refreshSingleLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
         len--;
     }
 
-    abInit(&ab);
+    linenoise_abInit(&ab);
     /* Cursor to left edge */
     snprintf(seq, sizeof seq, "\r");
-    abAppend(&ab, seq, strlen(seq));
+    linenoise_abAppend(&ab, seq, strlen(seq));
     /* Write the prompt and the current buffer content */
-    abAppend(&ab, l->prompt, strlen(l->prompt));
+    linenoise_abAppend(&ab, l->prompt, strlen(l->prompt));
     if (linenoise_ctx->options.maskmode)
     {
         while (len--)
         {
-            abAppend(&ab, "*", 1);
+            linenoise_abAppend(&ab, "*", 1);
         }
     }
     else
     {
-        abAppend(&ab, buf, len);
+        linenoise_abAppend(&ab, buf, len);
     }
 #ifdef WITH_HINTS
     /* Show hints if any. */
-    refreshShowHints(linenoise_ctx, &ab, l, plen);
+    linenoise_hints_refreshShowHints(linenoise_ctx, &ab, l, plen);
 #endif
     /* Erase to right */
     snprintf(seq, sizeof seq, "\x1b[0K");
-    abAppend(&ab, seq, strlen(seq));
+    linenoise_abAppend(&ab, seq, strlen(seq));
     /* Move cursor to original position. */
     snprintf(seq, sizeof seq, "\r\x1b[%dC", (int)(pos + plen));
-    abAppend(&ab, seq, strlen(seq));
+    linenoise_abAppend(&ab, seq, strlen(seq));
     if (write(fd, ab.b, ab.len) == -1)
     {
         success = false;
     } /* Can't recover from write error. */
-    abFree(&ab);
+    linenoise_abFree(&ab);
 
     return success;
 }
@@ -759,12 +598,12 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
 
     /* First step: clear all the lines used before. To do so start by
      * going to the last row. */
-    abInit(&ab);
+    linenoise_abInit(&ab);
     if (old_rows - rpos > 0)
     {
         lndebug("go down %d", old_rows - rpos);
         snprintf(seq, sizeof seq, "\x1b[%dB", old_rows - rpos);
-        abAppend(&ab, seq, strlen(seq));
+        linenoise_abAppend(&ab, seq, strlen(seq));
     }
 
     /* Now for every row clear it, go up. */
@@ -772,31 +611,31 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     {
         lndebug("clear+up");
         snprintf(seq, sizeof seq, "\r\x1b[0K\x1b[1A");
-        abAppend(&ab, seq, strlen(seq));
+        linenoise_abAppend(&ab, seq, strlen(seq));
     }
 
     /* Clean the top line. */
     lndebug("clear");
     snprintf(seq, sizeof seq, "\r\x1b[0K");
-    abAppend(&ab, seq, strlen(seq));
+    linenoise_abAppend(&ab, seq, strlen(seq));
 
     /* Write the prompt and the current buffer content */
-    abAppend(&ab, l->prompt, strlen(l->prompt));
+    linenoise_abAppend(&ab, l->prompt, strlen(l->prompt));
     if (linenoise_ctx->options.maskmode)
     {
         for (size_t i = 0; i < l->len; i++)
         {
-            abAppend(&ab, "*", 1);
+            linenoise_abAppend(&ab, "*", 1);
         }
     }
     else
     {
-        abAppend(&ab, l->buf, l->len);
+        linenoise_abAppend(&ab, l->buf, l->len);
     }
 
 #ifdef WITH_HINTS
     /* Show hints if any. */
-    refreshShowHints(linenoise_ctx, &ab, l, plen);
+    linenoise_hints_refreshShowHints(linenoise_ctx, &ab, l, plen);
 #endif
 
     /* If we are at the very end of the screen with our prompt, we need to
@@ -804,9 +643,9 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     if (l->pos && l->pos == l->len && ((l->pos + plen) % l->cols) == 0)
     {
         lndebug("<newline>");
-        abAppend(&ab, "\n", 1);
+        linenoise_abAppend(&ab, "\n", 1);
         snprintf(seq, sizeof seq, "\r");
-        abAppend(&ab, seq, strlen(seq));
+        linenoise_abAppend(&ab, seq, strlen(seq));
         rows++;
         if (rows > (int)l->maxrows)
             l->maxrows = rows;
@@ -821,7 +660,7 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     {
         lndebug("go-up %d", rows - rpos2);
         snprintf(seq, sizeof seq, "\x1b[%dA", rows - rpos2);
-        abAppend(&ab, seq, strlen(seq));
+        linenoise_abAppend(&ab, seq, strlen(seq));
     }
 
     /* Set column. */
@@ -835,7 +674,7 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     {
         snprintf(seq, sizeof seq, "\r");
     }
-    abAppend(&ab, seq, strlen(seq));
+    linenoise_abAppend(&ab, seq, strlen(seq));
 
     lndebug("\n");
     l->oldpos = l->pos;
@@ -844,7 +683,7 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     {
         success = false;
     }
-    abFree(&ab);
+    linenoise_abFree(&ab);
 
     return success;
 }
@@ -1697,6 +1536,7 @@ done:
     return;
 }
 
+
 void linenoise_bind_key(linenoise_st * const linenoise_ctx,
                         uint8_t const key,
                         key_binding_handler_cb const handler,
@@ -1743,14 +1583,6 @@ bool linenoise_insert_text_len(linenoise_st * const linenoise_ctx,
     struct linenoiseState * const ls = &linenoise_ctx->state;
     char * line = linenoise_line_get(linenoise_ctx);
 
-#if 0 // TODO: Support extensible line buffer.
-    if ((delta + this->end) > (this->buffer_size)) {
-		/* extend the current buffer */
-		if (!tinyrl_extend_line_buffer(this, this->end + delta)) {
-			return false;
-		}
-	}
-#endif
     if ((ls->len + delta) >= ls->buflen)
     {
         // TODO: Grow the buffer.

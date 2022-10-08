@@ -1,0 +1,7 @@
+#ifndef LINENOISE_CONFIG_H__
+#define LINENOISE_CONFIG_H__
+
+#cmakedefine WITH_HINTS @BUILD_WITH_HINTS@
+
+#endif /* LINENOISE_CONFIG_H__ */
+
