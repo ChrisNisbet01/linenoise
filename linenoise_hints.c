@@ -60,21 +60,5 @@ void linenoiseSetFreeHintsCallback(linenoise_st * const linenoise_ctx,
     linenoise_ctx->options.freeHintsCallback = fn;
 }
 
-#else
-
-/*
- * Include some stubs in the library so users can continue to link against
- * it even if hint support isn't included.
- */
-void linenoiseSetHintsCallback(linenoise_st * const linenoise_ctx,
-                               linenoiseHintsCallback * const fn)
-{
-}
-
-void linenoiseSetFreeHintsCallback(linenoise_st * const linenoise_ctx,
-                                   linenoiseFreeHintsCallback * const fn)
-{
-}
-
 #endif
 

@@ -222,57 +222,5 @@ done:
 	return res;
 }
 
-#else /* WITH_KEY_BINDING */
-/*
- * Just include some stubs so that users can link against a lib without this
- * support.
- */
-void
-linenoise_bind_key(
-    linenoise_st * const linenoise_ctx,
-    uint8_t const key,
-    key_binding_handler_cb const handler,
-    void * const user_ctx)
-{
-}
-
-void
-linenoise_delete_text(
-    linenoise_st * const linenoise_ctx,
-    unsigned start,
-    unsigned end)
-{
-}
-
-/*
- * Insert text into the line at the current cursor position.
- */
-bool
-linenoise_insert_text_len(
-    linenoise_st * const linenoise_ctx,
-    const char * text,
-    unsigned delta)
-{
-    return false;
-}
-
-bool
-linenoise_insert_text(
-    linenoise_st * const linenoise_ctx,
-    const char *text)
-{
-    return false;
-}
-
-bool
-linenoise_complete(
-    linenoise_st * const linenoise_ctx,
-    unsigned start,
-	char **matches,
-    bool allow_prefix)
-{
-	return false;
-}
-
 #endif /* WITH_KEY_BINDING */
 
