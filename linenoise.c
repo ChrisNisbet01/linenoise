@@ -175,8 +175,10 @@ struct linenoise_st
         bool mlmode;
         bool disable_beep;
         linenoiseCompletionCallback * completionCallback;
+#ifdef WITH_HINTS
         linenoiseHintsCallback * hintsCallback;
         linenoiseFreeHintsCallback * freeHintsCallback;
+#endif
     } options;
 
     struct
@@ -555,6 +557,7 @@ void linenoiseSetCompletionCallback(linenoise_st * const linenoise_ctx,
     linenoise_ctx->options.completionCallback = fn;
 }
 
+#ifdef WITH_HINTS
 /* Register a hits function to be called to show hits to the user at the
  * right of the prompt. */
 void linenoiseSetHintsCallback(linenoise_st * const linenoise_ctx,
@@ -570,6 +573,7 @@ void linenoiseSetFreeHintsCallback(linenoise_st * const linenoise_ctx,
 {
     linenoise_ctx->options.freeHintsCallback = fn;
 }
+#endif
 
 /* This function is used by the callback function registered by the user
  * in order to add completion options given the input string when the
@@ -628,6 +632,7 @@ static void abFree(struct abuf * ab)
     free(ab->b);
 }
 
+#ifdef WITH_HINTS
 /* Helper of refreshSingleLine() and refreshMultiLine() to show hints
  * to the right of the prompt. */
 static void refreshShowHints(linenoise_st * const linenoise_ctx,
@@ -665,6 +670,7 @@ static void refreshShowHints(linenoise_st * const linenoise_ctx,
         }
     }
 }
+#endif
 
 /* Single line low level line refresh.
  *
@@ -710,8 +716,10 @@ refreshSingleLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     {
         abAppend(&ab, buf, len);
     }
+#ifdef WITH_HINTS
     /* Show hints if any. */
     refreshShowHints(linenoise_ctx, &ab, l, plen);
+#endif
     /* Erase to right */
     snprintf(seq, sizeof seq, "\x1b[0K");
     abAppend(&ab, seq, strlen(seq));
@@ -786,8 +794,10 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
         abAppend(&ab, l->buf, l->len);
     }
 
+#ifdef WITH_HINTS
     /* Show hints if any. */
     refreshShowHints(linenoise_ctx, &ab, l, plen);
+#endif
 
     /* If we are at the very end of the screen with our prompt, we need to
      * emit a newline and move the prompt to the first column. */
@@ -1059,6 +1069,8 @@ linenoise_edit_done(linenoise_st * const linenoise_ctx, struct linenoiseState *l
     {
         linenoiseEditMoveEnd(linenoise_ctx, l);
     }
+
+#ifdef WITH_HINTS
     if (linenoise_ctx->options.hintsCallback != NULL)
     {
         /*
@@ -1070,6 +1082,8 @@ linenoise_edit_done(linenoise_st * const linenoise_ctx, struct linenoiseState *l
         refreshLine(linenoise_ctx, l);
         linenoise_ctx->options.hintsCallback = hc;
     }
+#endif
+
 }
 
 static int
@@ -1080,36 +1094,6 @@ ctrl_c_handler_default(linenoise_st * const linenoise_ctx, struct linenoiseState
     return (int)l->len;
 }
 
-
-static void
-display_matches(
-    linenoise_st * const linenoise_ctx,
-    char * * matches)
-{
-    char *const *m;
-    size_t max;
-    size_t c, cols;
-
-    /* find maximum completion length */
-    max = 0;
-    for (m = matches; *m; m++) {
-        size_t size = strlen(*m);
-        if (max < size)
-            max = size;
-    }
-
-    /* allow for a space between words */
-    cols = getColumns(linenoise_ctx->in.fd, linenoise_ctx->out.fd) / (max + 1);
-
-    /* print out a table of completions */
-    fprintf(linenoise_ctx->out.stream, "\r\n");
-    m = matches;
-    for (m = matches; *m; ) {
-        for (c = 0; c < cols && *m; c++, m++)
-            fprintf(linenoise_ctx->out.stream, "%-*s ", (int)max, *m);
-        fprintf(linenoise_ctx->out.stream, "\r\n");
-    }
-}
 
 /* This function is the core of the line editing capability of linenoise.
  * It expects 'fd' to be already in "raw mode" so that every key pressed
@@ -1173,12 +1157,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
                     linenoise_ctx,
                     c,
                     linenoise_ctx->key_bindings[index].user_ctx);
-
-            if (!res)
-            {
-                fprintf(stderr, "failed\n");
-            }
-
+            (void)res;
             continue;
         }
         /* Only autocomplete when the callback is set. It returns < 0 when
@@ -1744,7 +1723,7 @@ void linenoise_delete_text(
 	memmove(&line[start], &line[start + delta], ls->len + 1 - end);
 	ls->len -= delta;
 
-	/* now adjust the indexs */
+	/* now adjust the indexes */
 	if (ls->pos > end) {
 		/* move the insertion point back appropriately */
 		ls->pos -= delta;
@@ -1793,7 +1772,41 @@ bool linenoise_insert_text_len(linenoise_st * const linenoise_ctx,
 
 bool linenoise_insert_text(linenoise_st * const linenoise_ctx, const char *text)
 {
-	return linenoise_insert_text_len(linenoise_ctx, text, strlen(text));
+	bool const res = linenoise_insert_text_len(linenoise_ctx, text, strlen(text));
+
+    refreshLine(linenoise_ctx, &linenoise_ctx->state);
+
+    return res;
+}
+
+static void
+display_matches(
+    linenoise_st * const linenoise_ctx,
+    char * * matches)
+{
+    char *const *m;
+    size_t max;
+    size_t c, cols;
+
+    /* find maximum completion length */
+    max = 0;
+    for (m = matches; *m; m++) {
+        size_t size = strlen(*m);
+        if (max < size)
+            max = size;
+    }
+
+    /* allow for a space between words */
+    cols = getColumns(linenoise_ctx->in.fd, linenoise_ctx->out.fd) / (max + 1);
+
+    /* print out a table of completions */
+    fprintf(linenoise_ctx->out.stream, "\r\n");
+    m = matches;
+    for (m = matches; *m; ) {
+        for (c = 0; c < cols && *m; c++, m++)
+            fprintf(linenoise_ctx->out.stream, "%-*s ", (int)max, *m);
+        fprintf(linenoise_ctx->out.stream, "\r\n");
+    }
 }
 
 bool
@@ -1809,18 +1822,26 @@ linenoise_complete(
 	bool prefix;
 	int i;
 
-	if (!matches || !matches[0])
+    if (!matches || !matches[0])
+    {
 		return false;
+    }
 
 	/* identify common prefix */
 	len = strlen(matches[0]);
 	prefix = true;
-	for (i = 1; matches[i]; i++) {
+	for (i = 1; matches[i]; i++)
+    {
 		unsigned common;
-		for (common = 0; common < len; common++)
-			if (matches[0][common] != matches[i][common])
-				break;
-		if (len != common) {
+        for (common = 0; common < len; common++)
+        {
+            if (matches[0][common] != matches[i][common])
+            {
+                break;
+            }
+        }
+		if (len != common)
+        {
 			len = common;
 			prefix = !matches[i][len];
 		}
@@ -1844,12 +1865,16 @@ linenoise_complete(
 	}
 
 	/* is there only one completion? */
-	if (!matches[1])
+    if (!matches[1])
+    {
 		return true;
+    }
 
 	/* is the prefix valid? */
-	if (prefix && allow_prefix)
+    if (prefix && allow_prefix)
+    {
 		return true;
+    }
 
 	/* display matches if no progress was made */
 	if (!completion) {
