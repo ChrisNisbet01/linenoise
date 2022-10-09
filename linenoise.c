@@ -123,7 +123,7 @@
 #include <unistd.h>
 
 
-static char * unsupported_term[] = { "dumb", "cons25", "emacs", NULL };
+static char const * const unsupported_term[] = { "dumb", "cons25", "emacs", NULL };
 
 enum KEY_ACTION
 {
@@ -168,12 +168,14 @@ FILE *lndebug_fp = NULL;
 #define lndebug(fmt, ...)
 #endif
 
-char * linenoise_line_get(linenoise_st * linenoise_ctx)
+char *
+linenoise_line_get(linenoise_st * linenoise_ctx)
 {
     return linenoise_ctx->state.line_buf->b;
 }
 
-size_t linenoise_point_get(linenoise_st * linenoise_ctx)
+size_t
+linenoise_point_get(linenoise_st * linenoise_ctx)
 {
     return linenoise_ctx->state.pos;
 }
@@ -184,26 +186,30 @@ size_t linenoise_point_get(linenoise_st * linenoise_ctx)
  * the user is typing, the terminal will just display a corresponding
  * number of asterisks, like "****". This is useful for passwords and other
  * secrets that should not be displayed. */
-void linenoiseMaskModeEnable(linenoise_st * const linenoise_ctx)
+void
+linenoiseMaskModeEnable(linenoise_st * const linenoise_ctx)
 {
     linenoise_ctx->options.maskmode = true;
 }
 
 /* Disable mask mode. */
-void linenoiseMaskModeDisable(linenoise_st * const linenoise_ctx)
+void
+linenoiseMaskModeDisable(linenoise_st * const linenoise_ctx)
 {
     linenoise_ctx->options.maskmode = false;
 }
 
 /* Set if to use or not the multi line mode. */
-void linenoiseSetMultiLine(linenoise_st * const linenoise_ctx, bool const ml)
+void
+linenoiseSetMultiLine(linenoise_st * const linenoise_ctx, bool const ml)
 {
     linenoise_ctx->options.mlmode = ml;
 }
 
 /* Return true if the terminal name is in the list of terminals we know are
  * not able to understand basic escape sequences. */
-static int isUnsupportedTerm()
+static int
+isUnsupportedTerm()
 {
     char * term = getenv("TERM");
     int j;
@@ -223,7 +229,8 @@ static int isUnsupportedTerm()
 }
 
 /* Raw mode: 1960 magic shit. */
-static int enableRawMode(linenoise_st * const linenoise_ctx, int fd)
+static int
+enableRawMode(linenoise_st * const linenoise_ctx, int fd)
 {
     struct termios raw;
 
@@ -280,7 +287,8 @@ disableRawMode(linenoise_st * const linenoise_ctx, int fd)
 /* Use the ESC [6n escape sequence to query the horizontal cursor position
  * and return it. On error -1 is returned, on success the position of the
  * cursor. */
-static int getCursorPosition(int ifd, int ofd)
+static int
+getCursorPosition(int ifd, int ofd)
 {
     char buf[32];
     int cols, rows;
@@ -324,7 +332,8 @@ static int getCursorPosition(int ifd, int ofd)
  * Try to get the number of columns in the current terminal, or assume 80
  * if it fails.*
  */
-int getColumns(int ifd, int ofd)
+int
+linenoise_get_terminal_width(int const ifd, int const ofd)
 {
     int cols = DEFAULT_TERMINAL_WIDTH;
     struct winsize ws;
@@ -382,7 +391,8 @@ done:
 }
 
 /* Clear the screen. Used to handle ctrl+l */
-void linenoiseClearScreen(linenoise_st * const linenoise_ctx)
+void
+linenoiseClearScreen(linenoise_st * const linenoise_ctx)
 {
     if (write(linenoise_ctx->out.fd, "\x1b[H\x1b[2J", 7) <= 0)
     {
@@ -518,7 +528,8 @@ print_completions(linenoise_st * const linenoise_ctx,
  *
  * The state of the editing is encapsulated into the pointed linenoiseState
  * structure as described in the structure definition. */
-static int completeLine(linenoise_st * const linenoise_ctx, struct linenoiseState * ls)
+static int
+completeLine(linenoise_st * const linenoise_ctx, struct linenoiseState * ls)
 {
     linenoiseCompletions lc = { 0, NULL };
 
@@ -530,8 +541,9 @@ static int completeLine(linenoise_st * const linenoise_ctx, struct linenoiseStat
 }
 
 /* Register a callback function to be called for tab-completion. */
-void linenoiseSetCompletionCallback(linenoise_st * const linenoise_ctx,
-                                    linenoiseCompletionCallback * fn)
+void
+linenoiseSetCompletionCallback(linenoise_st * const linenoise_ctx,
+                               linenoiseCompletionCallback * fn)
 {
     linenoise_ctx->options.completionCallback = fn;
 }
@@ -540,7 +552,8 @@ void linenoiseSetCompletionCallback(linenoise_st * const linenoise_ctx,
  * in order to add completion options given the input string when the
  * user typed <tab>. See the example.c source code for a very easy to
  * understand example. */
-void linenoiseAddCompletion(linenoiseCompletions * lc, const char * str)
+void
+linenoiseAddCompletion(linenoiseCompletions * lc, const char * str)
 {
     size_t len = strlen(str);
     char * copy, ** cvec;
@@ -610,7 +623,7 @@ refreshSingleLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     /* Erase to right */
     linenoise_buffer_append(&ab, "\x1b[0K", strlen("\x1b[0K"));
     /* Move cursor to original position. */
-    linenoise_buffer_snprintf(&ab, seq, sizeof seq, "\r\x1b[%dC", (int)(pos + plen));
+    linenoise_buffer_snprintf(&ab, seq, sizeof seq, "\r\x1b[%dC",(int)(pos + plen));
     if (write(fd, ab.b, ab.len) == -1)
     {
         success = false;
@@ -755,9 +768,10 @@ refreshLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
 /* Insert the character 'c' at cursor current position.
  *
  * On error writing to the terminal -1 is returned, otherwise 0. */
-int linenoiseEditInsert(linenoise_st * const linenoise_ctx,
-                        struct linenoiseState * l,
-                        char c)
+int
+linenoiseEditInsert(linenoise_st * const linenoise_ctx,
+                    struct linenoiseState * l,
+                    char c)
 {
     if (l->len > l->line_buf->capacity)
     {
@@ -818,8 +832,9 @@ done:
 }
 
 /* Move cursor on the left. */
-static void linenoiseEditMoveLeft(linenoise_st * const linenoise_ctx,
-                                  struct linenoiseState * l)
+static void
+linenoiseEditMoveLeft(linenoise_st * const linenoise_ctx,
+                      struct linenoiseState * l)
 {
     if (l->pos > 0)
     {
@@ -829,8 +844,9 @@ static void linenoiseEditMoveLeft(linenoise_st * const linenoise_ctx,
 }
 
 /* Move cursor on the right. */
-static void linenoiseEditMoveRight(linenoise_st * const linenoise_ctx,
-                                   struct linenoiseState * l)
+static void
+linenoiseEditMoveRight(linenoise_st * const linenoise_ctx,
+                       struct linenoiseState * l)
 {
     if (l->pos != l->len)
     {
@@ -840,8 +856,9 @@ static void linenoiseEditMoveRight(linenoise_st * const linenoise_ctx,
 }
 
 /* Move cursor to the start of the line. */
-static void linenoiseEditMoveHome(linenoise_st * const linenoise_ctx,
-                                  struct linenoiseState * l)
+static void
+linenoiseEditMoveHome(linenoise_st * const linenoise_ctx,
+                      struct linenoiseState * l)
 {
     if (l->pos != 0)
     {
@@ -851,8 +868,9 @@ static void linenoiseEditMoveHome(linenoise_st * const linenoise_ctx,
 }
 
 /* Move cursor to the end of the line. */
-static void linenoiseEditMoveEnd(linenoise_st * const linenoise_ctx,
-                                 struct linenoiseState * l)
+static void
+linenoiseEditMoveEnd(linenoise_st * const linenoise_ctx,
+                     struct linenoiseState * l)
 {
     if (l->pos != l->len)
     {
@@ -863,10 +881,16 @@ static void linenoiseEditMoveEnd(linenoise_st * const linenoise_ctx,
 
 /* Substitute the currently edited line with the next or previous history
  * entry as specified by 'dir'. */
-#define LINENOISE_HISTORY_NEXT 0
-#define LINENOISE_HISTORY_PREV 1
-static void linenoiseEditHistoryNext(linenoise_st * const linenoise_ctx,
-                                     struct linenoiseState * l, int dir)
+enum linenoise_history_direction
+{
+    LINENOISE_HISTORY_NEXT = 0,
+    LINENOISE_HISTORY_PREV = 1
+};
+
+static void
+linenoiseEditHistoryNext(linenoise_st * const linenoise_ctx,
+                         struct linenoiseState * const l,
+                         enum linenoise_history_direction const dir)
 {
     if (linenoise_ctx->history.current_len > 1)
     {
@@ -888,10 +912,10 @@ static void linenoiseEditHistoryNext(linenoise_st * const linenoise_ctx,
         }
         linenoise_buffer_free(l->line_buf);
         linenoise_buffer_init(l->line_buf,
-                         strlen(linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index]));
+                              strlen(linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index]));
         linenoise_buffer_append(l->line_buf,
-                           linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index],
-                           strlen(linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index]));
+                                linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index],
+                                strlen(linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index]));
         l->len = l->pos = l->line_buf->len;
         refreshLine(linenoise_ctx, l);
     }
@@ -899,8 +923,9 @@ static void linenoiseEditHistoryNext(linenoise_st * const linenoise_ctx,
 
 /* Delete the character at the right of the cursor without altering the cursor
  * position. Basically this is what happens with the "Delete" keyboard key. */
-static void linenoiseEditDelete(linenoise_st * const linenoise_ctx,
-                                struct linenoiseState * l)
+static void
+linenoiseEditDelete(linenoise_st * const linenoise_ctx,
+                    struct linenoiseState * l)
 {
     if (l->len > 0 && l->pos < l->len)
     {
@@ -912,8 +937,9 @@ static void linenoiseEditDelete(linenoise_st * const linenoise_ctx,
 }
 
 /* Backspace implementation. */
-static void linenoiseEditBackspace(linenoise_st * const linenoise_ctx,
-                                   struct linenoiseState * l)
+static void
+linenoiseEditBackspace(linenoise_st * const linenoise_ctx,
+                       struct linenoiseState * l)
 {
     if (l->pos > 0 && l->len > 0)
     {
@@ -927,8 +953,9 @@ static void linenoiseEditBackspace(linenoise_st * const linenoise_ctx,
 
 /* Delete the previous word, maintaining the cursor at the start of the
  * current word. */
-static void linenoiseEditDeletePrevWord(linenoise_st * const linenoise_ctx,
-                                        struct linenoiseState * l)
+static void
+linenoiseEditDeletePrevWord(linenoise_st * const linenoise_ctx,
+                            struct linenoiseState * l)
 {
     size_t old_pos = l->pos;
     size_t diff;
@@ -948,7 +975,7 @@ static void linenoiseEditDeletePrevWord(linenoise_st * const linenoise_ctx,
 }
 
 static void
-delete_whole_line(linenoise_st * const linenoise_ctx, struct linenoiseState *l)
+delete_whole_line(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
 {
     l->line_buf->b[0] = '\0';
     l->pos = 0;
@@ -957,7 +984,7 @@ delete_whole_line(linenoise_st * const linenoise_ctx, struct linenoiseState *l)
 }
 
 static void
-linenoise_edit_done(linenoise_st * const linenoise_ctx, struct linenoiseState *l)
+linenoise_edit_done(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
 {
     linenoise_ctx->history.current_len--;
     free(linenoise_ctx->history.history[linenoise_ctx->history.current_len]);
@@ -1017,7 +1044,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
     l->oldpos = 0;
     l->pos = 0;
     l->len = 0;
-    l->cols = getColumns(stdin_fd, stdout_fd);
+    l->cols = linenoise_get_terminal_width(stdin_fd, stdout_fd);
     l->maxrows = 0;
     l->history_index = 0;
 
@@ -1050,9 +1077,9 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
             size_t const index = (unsigned)c;
 
             bool const res = linenoise_ctx->key_bindings[index].handler(
-                    linenoise_ctx,
-                    c,
-                    linenoise_ctx->key_bindings[index].user_ctx);
+                linenoise_ctx,
+                c,
+                linenoise_ctx->key_bindings[index].user_ctx);
             (void)res;
             continue;
         }
@@ -1251,7 +1278,8 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
 /* This special mode is used by linenoise in order to print scan codes
  * on screen for debugging / development purposes. It is implemented
  * by the linenoise_example program using the --keycodes option. */
-void linenoisePrintKeyCodes(linenoise_st * const linenoise_ctx)
+void
+linenoisePrintKeyCodes(linenoise_st * const linenoise_ctx)
 {
     char quit[4];
 
@@ -1307,7 +1335,8 @@ linenoiseRaw(linenoise_st * const linenoise_ctx,
  * program using linenoise is called in pipe or with a file redirected
  * to its standard input. In this case, we want to be able to return the
  * line regardless of its length (by default we are limited to 4k). */
-static char * linenoiseNoTTY(linenoise_st * const linenoise_ctx)
+static char *
+linenoiseNoTTY(linenoise_st * const linenoise_ctx)
 {
     char * line = NULL;
     size_t len = 0;
@@ -1368,7 +1397,8 @@ static char * linenoiseNoTTY(linenoise_st * const linenoise_ctx)
  * for a blacklist of stupid terminals, and later either calls the line
  * editing function or uses dummy fgets() so that you will be able to type
  * something even in the most desperate of the conditions. */
-char * linenoise(linenoise_st * const linenoise_ctx, const char * prompt)
+char *
+linenoise(linenoise_st * const linenoise_ctx, const char * prompt)
 {
     int count;
 
@@ -1429,7 +1459,8 @@ char * linenoise(linenoise_st * const linenoise_ctx, const char * prompt)
  * the linenoise returned buffer is freed with the same allocator it was
  * created with. Useful when the main program is using an alternative
  * allocator. */
-void linenoiseFree(void * ptr)
+void
+linenoiseFree(void * ptr)
 {
     free(ptr);
 }
@@ -1438,7 +1469,8 @@ void linenoiseFree(void * ptr)
 
 /* Free the history, but does not reset it. Only used when we have to
  * exit() to avoid memory leaks are reported by valgrind & co. */
-static void freeHistory(linenoise_st * const linenoise_ctx)
+static void
+freeHistory(linenoise_st * const linenoise_ctx)
 {
     if (linenoise_ctx->history.history)
     {
@@ -1457,7 +1489,8 @@ static void freeHistory(linenoise_st * const linenoise_ctx)
  * histories, but will work well for a few hundred of entries.
  *
  * Using a circular buffer is smarter, but a bit more complex to handle. */
-int linenoiseHistoryAdd(linenoise_st * const linenoise_ctx, const char * line)
+int
+linenoiseHistoryAdd(linenoise_st * const linenoise_ctx, const char * line)
 {
     if (linenoise_ctx->history.max_len == 0)
     {
@@ -1505,7 +1538,8 @@ int linenoiseHistoryAdd(linenoise_st * const linenoise_ctx, const char * line)
  * if there is already some history, the function will make sure to retain
  * just the latest 'len' elements if the new history length value is smaller
  * than the amount of items already inside the history. */
-int linenoiseHistorySetMaxLen(linenoise_st * const linenoise_ctx, int const len)
+int
+linenoiseHistorySetMaxLen(linenoise_st * const linenoise_ctx, int const len)
 {
     if (len < 1)
     {
@@ -1545,7 +1579,8 @@ int linenoiseHistorySetMaxLen(linenoise_st * const linenoise_ctx, int const len)
 #if LINENOISE_HISTORY_FILE_SUPPORT
 /* Save the history in the specified file. On success 0 is returned
  * otherwise -1 is returned. */
-int linenoiseHistorySave(const char * filename)
+int
+linenoiseHistorySave(const char * filename)
 {
     mode_t old_umask = umask(S_IXUSR | S_IRWXG | S_IRWXO);
     FILE * fp;
@@ -1567,7 +1602,8 @@ int linenoiseHistorySave(const char * filename)
  *
  * If the file exists and the operation succeeded 0 is returned, otherwise
  * on error -1 is returned. */
-int linenoiseHistoryLoad(const char * filename)
+int
+linenoiseHistoryLoad(const char * filename)
 {
     FILE * fp = fopen(filename, "r");
     char buf[LINENOISE_MAX_LINE];

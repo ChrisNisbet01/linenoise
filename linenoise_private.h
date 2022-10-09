@@ -84,7 +84,7 @@ struct linenoise_st
 };
 
 int
-getColumns(int ifd, int ofd);
+linenoise_get_terminal_width(int ifd, int ofd);
 
 bool
 refreshLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l);
