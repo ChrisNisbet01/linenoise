@@ -289,74 +289,95 @@ static int getCursorPosition(int ifd, int ofd)
 
     /* Report cursor location */
     if (write(ofd, "\x1b[6n", 4) != 4)
+    {
         return -1;
+    }
 
     /* Read the response: ESC [ rows ; cols R */
     while (i < sizeof(buf) - 1)
     {
         if (read(ifd, buf + i, 1) != 1)
+        {
             break;
+        }
         if (buf[i] == 'R')
+        {
             break;
+        }
         i++;
     }
     buf[i] = '\0';
 
     /* Parse it. */
     if (buf[0] != ESC || buf[1] != '[')
+    {
         return -1;
+    }
     if (sscanf(buf + 2, "%d;%d", &rows, &cols) != 2)
+    {
         return -1;
+    }
     return cols;
 }
 #endif
 
-/* Try to get the number of columns in the current terminal, or assume 80
- * if it fails. */
+/*
+ * Try to get the number of columns in the current terminal, or assume 80
+ * if it fails.*
+ */
 int getColumns(int ifd, int ofd)
 {
+    int cols = DEFAULT_TERMINAL_WIDTH;
     struct winsize ws;
 
     if (ioctl(ofd, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0)
     {
 #if QUERY_TERMINAL_FOR_WIDTH
         /* ioctl() failed. Try to query the terminal itself. */
-        int start, cols;
 
         /* Get the initial position so we can restore it later. */
-        start = getCursorPosition(ifd, ofd);
+        int const start = getCursorPosition(ifd, ofd);
+
         if (start == -1)
-            goto failed;
+        {
+            goto done;
+        }
 
         /* Go to right margin and get position. */
         if (write(ofd, "\x1b[999C", 6) != 6)
-            goto failed;
+        {
+            goto done;
+        }
         cols = getCursorPosition(ifd, ofd);
         if (cols == -1)
-            goto failed;
+        {
+            cols = DEFAULT_TERMINAL_WIDTH;
+            goto done;
+        }
 
         /* Restore position. */
         if (cols > start)
         {
             char seq[32];
-            snprintf(seq, 32, "\x1b[%dD", cols - start);
+
+            snprintf(seq, sizeof seq, "\x1b[%dD", cols - start);
             if (write(ofd, seq, strlen(seq)) == -1)
             {
                 /* Can't recover... */
             }
         }
-        return cols;
-#else
-        goto failed;
 #endif
     }
     else
     {
-        return ws.ws_col;
+        cols = ws.ws_col;
     }
 
-failed:
-    return DEFAULT_TERMINAL_WIDTH;
+#if QUERY_TERMINAL_FOR_WIDTH
+done:
+#endif
+
+    return cols;
 }
 
 /* Clear the screen. Used to handle ctrl+l */
@@ -1263,6 +1284,10 @@ static char * linenoiseNoTTY(linenoise_st * const linenoise_ctx)
 
     while (1)
     {
+        /*
+         * Grow the buffer.
+         * XXX - Use append buffer?
+         */
         if (len == maxlen)
         {
             if (maxlen == 0)
@@ -1282,6 +1307,7 @@ static char * linenoiseNoTTY(linenoise_st * const linenoise_ctx)
             }
             line[len] = '\0';
         }
+
         int c = fgetc(linenoise_ctx->in.stream);
         if (c == EOF || c == '\n')
         {
@@ -1345,7 +1371,9 @@ char * linenoise(linenoise_st * const linenoise_ctx, const char * prompt)
     {
         count = linenoiseRaw(linenoise_ctx, buf, sizeof buf, prompt);
         if (count == -1)
+        {
             return NULL;
+        }
         return strdup(buf);
     }
 }

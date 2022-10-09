@@ -143,6 +143,7 @@ linenoise_complete(
     for (i = 1; matches[i] != NULL; i++)
     {
         unsigned common;
+
         for (common = 0; common < len; common++)
         {
             if (matches[0][common] != matches[i][common])
