@@ -20,7 +20,7 @@ if(WITH_DEBUG_SYMBOLS)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
 endif(WITH_DEBUG_SYMBOLS)
 
-add_library(linenoise 
+add_library(linenoise SHARED
   linenoise.c 
   include/linenoise.h 
   buffer.c
@@ -30,6 +30,7 @@ add_library(linenoise
   linenoise_hints.h
   linenoise_key_binding.c
 )
+
 target_include_directories(linenoise 
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
   PRIVATE ${PROJECT_BINARY_DIR}
