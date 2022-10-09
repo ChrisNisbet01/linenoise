@@ -4,11 +4,15 @@ project(linenoise C)
 OPTION(WITH_HINTS "Support hints" ON)
 OPTION(WITH_KEY_BINDING "Support key binding" OFF)
 OPTION(QUERY_TERMINAL_FOR_WIDTH "Attempt to get terminal width using ESCAPE codes if ioctl calls fail" ON)
+OPTION(WITH_DEBUG_SYMBOLS "Include symbols for debugging" OFF)
 
 configure_file(config.h.in ${PROJECT_BINARY_DIR}/config.h)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall -Wmissing-prototypes -Werror")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wmissing-prototypes -Werror")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
+if(WITH_DEBUG_SYMBOLS)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
+endif(WITH_DEBUG_SYMBOLS)
 
 add_library(linenoise 
   linenoise.c 

@@ -1,5 +1,6 @@
 #include "buffer.h"
 
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,7 +9,7 @@
 #define MIN_CAPACITY_INCREASE 256
 
 bool
-linenoise_abGrow(struct buffer * const ab, size_t const amount)
+linenoise_buffer_grow(struct buffer * const ab, size_t const amount)
 {
     size_t extra_bytes = amount;
 
@@ -31,17 +32,17 @@ linenoise_abGrow(struct buffer * const ab, size_t const amount)
 }
 
 bool
-linenoise_abInit(struct buffer * ab, size_t const initial_capacity)
+linenoise_buffer_init(struct buffer * ab, size_t const initial_capacity)
 {
     ab->len = 0;
     ab->capacity = 0;
     ab->b = NULL;
 
-    return linenoise_abGrow(ab, initial_capacity);
+    return linenoise_buffer_grow(ab, initial_capacity);
 }
 
 bool
-linenoise_abAppend(
+linenoise_buffer_append(
     struct buffer * const ab,
     char const * const s,
     size_t const len)
@@ -57,7 +58,7 @@ linenoise_abAppend(
     {
         size_t const grow_amount = new_len - ab->capacity;
 
-        if (!linenoise_abGrow(ab, grow_amount))
+        if (!linenoise_buffer_grow(ab, grow_amount))
         {
             return false;
         }
@@ -70,7 +71,7 @@ linenoise_abAppend(
     return true;
 }
 
-void linenoise_abFree(struct buffer * ab)
+void linenoise_buffer_free(struct buffer * ab)
 {
     free(ab->b);
     ab->b = NULL;
@@ -78,4 +79,18 @@ void linenoise_abFree(struct buffer * ab)
     ab->capacity = 0;
 }
 
+int linenoise_buffer_snprintf(
+    struct buffer * const ab,
+    char * const buf, size_t const buf_size,
+    char const * const fmt, ...)
+{
+    va_list arg_ptr;
 
+    va_start(arg_ptr, fmt);
+    int const res = vsnprintf(buf, buf_size, fmt, arg_ptr);
+    va_end(arg_ptr);
+
+    linenoise_buffer_append(ab, buf, strlen(buf));
+
+    return res;
+}

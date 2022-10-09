@@ -378,6 +378,8 @@ int getColumns(int ifd, int ofd)
             if (write(ofd, seq, strlen(seq)) == -1)
             {
                 /* Can't recover... */
+                cols = DEFAULT_TERMINAL_WIDTH;
+                goto done;
             }
         }
 #endif
@@ -447,8 +449,8 @@ print_completions(linenoise_st * const linenoise_ctx,
                 struct buffer temp_buf;
 
                 /* Construct the temporary buffer */
-                linenoise_abInit(&temp_buf, strlen(lc->cvec[i]));
-                linenoise_abAppend(&temp_buf, lc->cvec[i], strlen(lc->cvec[i]));
+                linenoise_buffer_init(&temp_buf, strlen(lc->cvec[i]));
+                linenoise_buffer_append(&temp_buf, lc->cvec[i], strlen(lc->cvec[i]));
                 ls->len = ls->pos = temp_buf.len;
                 ls->line_buf = &temp_buf;
 
@@ -458,7 +460,7 @@ print_completions(linenoise_st * const linenoise_ctx,
                 ls->pos = saved.pos;
                 ls->line_buf = saved.line_buf;
 
-                linenoise_abFree(&temp_buf);
+                linenoise_buffer_free(&temp_buf);
             }
             else
             {
@@ -494,9 +496,9 @@ print_completions(linenoise_st * const linenoise_ctx,
                 /* Update buffer and return */
                 if (i < lc->len)
                 {
-                    linenoise_abFree(ls->line_buf);
-                    linenoise_abInit(ls->line_buf, strlen(lc->cvec[i]));
-                    linenoise_abAppend(ls->line_buf, lc->cvec[i], strlen(lc->cvec[i]));
+                    linenoise_buffer_free(ls->line_buf);
+                    linenoise_buffer_init(ls->line_buf, strlen(lc->cvec[i]));
+                    linenoise_buffer_append(ls->line_buf, lc->cvec[i], strlen(lc->cvec[i]));
                     ls->len = ls->pos = ls->line_buf->len;
                 }
                 stop = 1;
@@ -582,38 +584,35 @@ refreshSingleLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
         len--;
     }
 
-    linenoise_abInit(&ab, 20);
+    linenoise_buffer_init(&ab, 20);
     /* Cursor to left edge */
-    snprintf(seq, sizeof seq, "\r");
-    linenoise_abAppend(&ab, seq, strlen(seq));
+    linenoise_buffer_append(&ab, "\r", strlen("\r"));
     /* Write the prompt and the current buffer content */
-    linenoise_abAppend(&ab, l->prompt, strlen(l->prompt));
+    linenoise_buffer_append(&ab, l->prompt, strlen(l->prompt));
     if (linenoise_ctx->options.maskmode)
     {
         while (len--)
         {
-            linenoise_abAppend(&ab, "*", 1);
+            linenoise_buffer_append(&ab, "*", 1);
         }
     }
     else
     {
-        linenoise_abAppend(&ab, buf, len);
+        linenoise_buffer_append(&ab, buf, len);
     }
 #if WITH_HINTS
     /* Show hints if any. */
     linenoise_hints_refreshShowHints(linenoise_ctx, &ab, l, plen);
 #endif
     /* Erase to right */
-    snprintf(seq, sizeof seq, "\x1b[0K");
-    linenoise_abAppend(&ab, seq, strlen(seq));
+    linenoise_buffer_append(&ab, "\x1b[0K", strlen("\x1b[0K"));
     /* Move cursor to original position. */
-    snprintf(seq, sizeof seq, "\r\x1b[%dC", (int)(pos + plen));
-    linenoise_abAppend(&ab, seq, strlen(seq));
+    linenoise_buffer_snprintf(&ab, seq, sizeof seq, "\r\x1b[%dC", (int)(pos + plen));
     if (write(fd, ab.b, ab.len) == -1)
     {
         success = false;
     } /* Can't recover from write error. */
-    linenoise_abFree(&ab);
+    linenoise_buffer_free(&ab);
 
     return success;
 }
@@ -638,43 +637,42 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
 
     /* Update maxrows if needed. */
     if (rows > (int)l->maxrows)
+    {
         l->maxrows = rows;
+    }
 
     /* First step: clear all the lines used before. To do so start by
      * going to the last row. */
-    linenoise_abInit(&ab, 20);
+    linenoise_buffer_init(&ab, 20);
     if (old_rows - rpos > 0)
     {
         lndebug("go down %d", old_rows - rpos);
-        snprintf(seq, sizeof seq, "\x1b[%dB", old_rows - rpos);
-        linenoise_abAppend(&ab, seq, strlen(seq));
+        linenoise_buffer_snprintf(&ab, seq, sizeof seq, "\x1b[%dB", old_rows - rpos);
     }
 
     /* Now for every row clear it, go up. */
     for (int j = 0; j < old_rows - 1; j++)
     {
         lndebug("clear+up");
-        snprintf(seq, sizeof seq, "\r\x1b[0K\x1b[1A");
-        linenoise_abAppend(&ab, seq, strlen(seq));
+        linenoise_buffer_append(&ab, "\r\x1b[0K\x1b[1A", strlen("\r\x1b[0K\x1b[1A"));
     }
 
     /* Clean the top line. */
     lndebug("clear");
-    snprintf(seq, sizeof seq, "\r\x1b[0K");
-    linenoise_abAppend(&ab, seq, strlen(seq));
+    linenoise_buffer_append(&ab, "\r\x1b[0K", strlen("\r\x1b[0K"));
 
     /* Write the prompt and the current buffer content */
-    linenoise_abAppend(&ab, l->prompt, strlen(l->prompt));
+    linenoise_buffer_append(&ab, l->prompt, strlen(l->prompt));
     if (linenoise_ctx->options.maskmode)
     {
         for (size_t i = 0; i < l->len; i++)
         {
-            linenoise_abAppend(&ab, "*", 1);
+            linenoise_buffer_append(&ab, "*", 1);
         }
     }
     else
     {
-        linenoise_abAppend(&ab, l->line_buf->b, l->len);
+        linenoise_buffer_append(&ab, l->line_buf->b, l->len);
     }
 
 #if WITH_HINTS
@@ -687,9 +685,7 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     if (l->pos && l->pos == l->len && ((l->pos + plen) % l->cols) == 0)
     {
         lndebug("<newline>");
-        linenoise_abAppend(&ab, "\n", 1);
-        snprintf(seq, sizeof seq, "\r");
-        linenoise_abAppend(&ab, seq, strlen(seq));
+        linenoise_buffer_append(&ab, "\n\r", strlen("\n\r"));
         rows++;
         if (rows > (int)l->maxrows)
         {
@@ -705,8 +701,7 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     if (rows - rpos2 > 0)
     {
         lndebug("go-up %d", rows - rpos2);
-        snprintf(seq, sizeof seq, "\x1b[%dA", rows - rpos2);
-        linenoise_abAppend(&ab, seq, strlen(seq));
+        linenoise_buffer_snprintf(&ab, seq, sizeof seq, "\x1b[%dA", rows - rpos2);
     }
 
     /* Set column. */
@@ -714,13 +709,12 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     lndebug("set col %d", 1 + col);
     if (col)
     {
-        snprintf(seq, sizeof seq, "\r\x1b[%dC", col);
+        linenoise_buffer_snprintf(&ab, seq, sizeof seq, "\r\x1b[%dC", col);
     }
     else
     {
-        snprintf(seq, sizeof seq, "\r");
+        linenoise_buffer_append(&ab, "\r", strlen("\r"));
     }
-    linenoise_abAppend(&ab, seq, strlen(seq));
 
     lndebug("\n");
     l->oldpos = l->pos;
@@ -729,7 +723,7 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     {
         success = false;
     }
-    linenoise_abFree(&ab);
+    linenoise_buffer_free(&ab);
 
     return success;
 }
@@ -764,7 +758,7 @@ int linenoiseEditInsert(linenoise_st * const linenoise_ctx,
 {
     if (l->len > l->line_buf->capacity)
     {
-        if (!linenoise_abGrow(l->line_buf, l->len - l->line_buf->capacity))
+        if (!linenoise_buffer_grow(l->line_buf, l->len - l->line_buf->capacity))
         {
             goto done;
         }
@@ -889,10 +883,10 @@ static void linenoiseEditHistoryNext(linenoise_st * const linenoise_ctx,
             l->history_index = linenoise_ctx->history.current_len - 1;
             return;
         }
-        linenoise_abFree(l->line_buf);
-        linenoise_abInit(l->line_buf,
+        linenoise_buffer_free(l->line_buf);
+        linenoise_buffer_init(l->line_buf,
                          strlen(linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index]));
-        linenoise_abAppend(l->line_buf,
+        linenoise_buffer_append(l->line_buf,
                            linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index],
                            strlen(linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index]));
         l->len = l->pos = l->line_buf->len;
@@ -1384,7 +1378,7 @@ char * linenoise(linenoise_st * const linenoise_ctx, const char * prompt)
         size_t len;
         struct buffer line_buf;
 
-        linenoise_abInit(&line_buf, LINENOISE_MAX_LINE);
+        linenoise_buffer_init(&line_buf, LINENOISE_MAX_LINE);
 
         fprintf(linenoise_ctx->out.stream, "%s", prompt);
         fflush(linenoise_ctx->out.stream);
@@ -1401,14 +1395,14 @@ char * linenoise(linenoise_st * const linenoise_ctx, const char * prompt)
         }
         char * const line = strdup(line_buf.b);
 
-        linenoise_abFree(&line_buf);
+        linenoise_buffer_free(&line_buf);
         return line;
     }
     else
     {
         struct buffer line_buf;
 
-        linenoise_abInit(&line_buf, 100);
+        linenoise_buffer_init(&line_buf, 100);
 
         count = linenoiseRaw(linenoise_ctx, &line_buf, prompt);
         char * line;
@@ -1421,7 +1415,7 @@ char * linenoise(linenoise_st * const linenoise_ctx, const char * prompt)
             line = strdup(line_buf.b);
         }
 
-        linenoise_abFree(&line_buf);
+        linenoise_buffer_free(&line_buf);
         return line;
     }
 }

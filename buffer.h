@@ -16,18 +16,23 @@ struct buffer
 
 
 bool
-linenoise_abInit(struct buffer * ab, size_t initial_capacity);
+linenoise_buffer_init(struct buffer * ab, size_t initial_capacity);
 
 /*
  * Append characaters to the buffer.
  * Return true if successful, else false.
  */
 bool
-linenoise_abAppend(struct buffer * ab, char const * s, size_t len);
+linenoise_buffer_append(struct buffer * ab, char const * s, size_t len);
+
+int linenoise_buffer_snprintf(
+    struct buffer * ab,
+    char * buf, size_t buf_size,
+    char const * fmt, ...);
 
 bool
-linenoise_abGrow(struct buffer * ab, size_t amount);
+linenoise_buffer_grow(struct buffer * ab, size_t amount);
 
 void
-linenoise_abFree(struct buffer * ab);
+linenoise_buffer_free(struct buffer * ab);
 

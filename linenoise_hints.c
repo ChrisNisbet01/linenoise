@@ -25,17 +25,12 @@ void linenoise_hints_refreshShowHints(
                 color = 37;
             if (color != -1 || bold != 0)
             {
-                snprintf(seq, sizeof seq, "\033[%d;%d;49m", bold, color);
+                linenoise_buffer_snprintf(&ab, seq, sizeof seq, "\033[%d;%d;49m", bold, color);
             }
-            else
-            {
-                seq[0] = '\0';
-            }
-            linenoise_abAppend(ab, seq, strlen(seq));
-            linenoise_abAppend(ab, hint, hintlen);
+            linenoise_buffer_append(ab, hint, hintlen);
             if (color != -1 || bold != 0)
             {
-                linenoise_abAppend(ab, "\033[0m", 4);
+                linenoise_buffer_append(ab, "\033[0m", strlen("\033[0m"));
             }
             /* Call the function to free the hint returned. */
             if (linenoise_ctx->options.freeHintsCallback)
