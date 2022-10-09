@@ -85,7 +85,7 @@ bool linenoise_insert_text(linenoise_st * const linenoise_ctx, const char * text
 bool linenoise_complete(
     linenoise_st * const linenoise_ctx,
     unsigned start,
-    char ** matches,
+    char * * matches,
     bool allow_prefix);
 
 

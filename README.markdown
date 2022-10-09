@@ -1,5 +1,10 @@
 # Linenoise
 
+A heavily modified version of linenoise that can be found here...
+
+    https://github.com/antirez/linenoise
+
+
 A minimal, zero-config, BSD licensed, readline replacement used in Redis,
 MongoDB, and Android.
 
@@ -59,7 +64,23 @@ Linenoise is very easy to use, and reading the example shipped with the
 library should get you up to speed ASAP. Here is a list of API calls
 and how to use them.
 
-    char *linenoise(const char *prompt);
+## Create a context
+
+    struct linenoise_st * linenoise_new(FILE * in_stream, FILE * out_stream);
+
+Create a context that contains all of the state information relating to linenoise.
+e.g.
+    linenoise_st * linenoise_ctx = linenoise_new(stdin, output_fp);
+
+## Free a context
+
+    linenoise_delete(linenoise_ctx);
+
+Free the linenoise context. Call this once you are done using the linenoise context.
+
+## Read line input
+
+    char *linenoise(linenoise_st * linenoise_ctx, const char *prompt);
 
 This is the main Linenoise call: it shows the user a prompt with line editing
 and history capabilities. The prompt you specify is used as a prompt, that is,

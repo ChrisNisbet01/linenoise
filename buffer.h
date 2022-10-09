@@ -25,7 +25,8 @@ linenoise_buffer_init(struct buffer * ab, size_t initial_capacity);
 bool
 linenoise_buffer_append(struct buffer * ab, char const * s, size_t len);
 
-int linenoise_buffer_snprintf(
+int
+linenoise_buffer_snprintf(
     struct buffer * ab,
     char * buf, size_t buf_size,
     char const * fmt, ...);

@@ -19,8 +19,8 @@ linenoise_bind_key(
 void
 linenoise_delete_text(
     linenoise_st * const linenoise_ctx,
-    unsigned start,
-    unsigned end)
+    unsigned const start,
+    unsigned const end)
 {
     unsigned delta;
 
@@ -71,17 +71,15 @@ linenoise_insert_text(
     linenoise_st * const linenoise_ctx,
     char const * const text)
 {
-    bool const res = linenoise_insert_text_len(linenoise_ctx, text, strlen(text));
-
-    return res;
+    return linenoise_insert_text_len(linenoise_ctx, text, strlen(text));
 }
 
 static void
 display_matches(
     linenoise_st * const linenoise_ctx,
-    char * * matches)
+    char * * const matches)
 {
-    char * const * m;
+    char * * m;
     size_t max;
     size_t c;
 
@@ -119,7 +117,7 @@ bool
 linenoise_complete(
     linenoise_st * const linenoise_ctx,
     unsigned start,
-    char ** matches,
+    char * * const matches,
     bool allow_prefix)
 {
 /*

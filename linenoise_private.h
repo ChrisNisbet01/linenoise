@@ -56,7 +56,7 @@ struct linenoise_st
     struct termios orig_termios;
 
 #if WITH_KEY_BINDING
-    key_binding_st key_bindings[256]; /* One for each character. */
+    key_binding_st key_bindings[256]; /* One for each ACSII character. */
 #endif
 
     struct linenoiseState state;
@@ -87,9 +87,10 @@ int
 linenoise_get_terminal_width(int ifd, int ofd);
 
 bool
-refreshLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l);
+refreshLine(linenoise_st * linenoise_ctx, struct linenoiseState * l);
 
-int linenoiseEditInsert(linenoise_st * const linenoise_ctx,
-                        struct linenoiseState * l,
-                        char c);
+int
+linenoiseEditInsert(linenoise_st * linenoise_ctx,
+                    struct linenoiseState * l,
+                    char c);
 
