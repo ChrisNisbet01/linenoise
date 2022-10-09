@@ -168,21 +168,6 @@ FILE *lndebug_fp = NULL;
 #define lndebug(fmt, ...)
 #endif
 
-/* Free a list of completion option populated by linenoiseAddCompletion(). */
-static void
-freeCompletions(linenoiseCompletions * const lc)
-{
-    size_t i;
-    for (i = 0; i < lc->len; i++)
-    {
-        free(lc->cvec[i]);
-    }
-    if (lc->cvec != NULL)
-    {
-        free(lc->cvec);
-    }
-}
-
 char * linenoise_line_get(linenoise_st * linenoise_ctx)
 {
     return linenoise_ctx->state.line_buf->b;
@@ -405,6 +390,13 @@ void linenoiseClearScreen(linenoise_st * const linenoise_ctx)
     }
 }
 
+void
+linenoiseBeepControl(linenoise_st * const linenoise_ctx, bool const enable)
+{
+    linenoise_ctx->options.disable_beep = !enable;
+}
+
+#if WITH_NATIVE_COMPLETION
 /* Beep, used for completion when there is nothing to complete or when all
  * the choices were already shown. */
 static void
@@ -417,12 +409,22 @@ linenoiseBeep(linenoise_st * const linenoise_ctx)
     }
 }
 
-void
-linenoiseBeepControl(linenoise_st * const linenoise_ctx, bool const enable)
-{
-    linenoise_ctx->options.disable_beep = !enable;
-}
 /* ============================== Completion ================================ */
+
+/* Free a list of completion option populated by linenoiseAddCompletion(). */
+static void
+freeCompletions(linenoiseCompletions * const lc)
+{
+    size_t i;
+    for (i = 0; i < lc->len; i++)
+    {
+        free(lc->cvec[i]);
+    }
+    if (lc->cvec != NULL)
+    {
+        free(lc->cvec);
+    }
+}
 
 static int
 print_completions(linenoise_st * const linenoise_ctx,
@@ -556,6 +558,7 @@ void linenoiseAddCompletion(linenoiseCompletions * lc, const char * str)
     lc->cvec = cvec;
     lc->cvec[lc->len++] = copy;
 }
+#endif
 
 /* Single line low level line refresh.
  *
@@ -1055,6 +1058,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
         }
 #endif
 
+#if WITH_NATIVE_COMPLETION
         /* Only autocomplete when the callback is set. It returns < 0 when
          * there was an error reading from fd. Otherwise it will return the
          * character that should be handled next. */
@@ -1068,6 +1072,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
             if (c == 0)
                 continue;
         }
+#endif
 
         switch (c)
         {

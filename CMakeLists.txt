@@ -5,6 +5,7 @@ OPTION(WITH_HINTS "Support hints" ON)
 OPTION(WITH_KEY_BINDING "Support key binding" OFF)
 OPTION(QUERY_TERMINAL_FOR_WIDTH "Attempt to get terminal width using ESCAPE codes if ioctl calls fail" ON)
 OPTION(WITH_DEBUG_SYMBOLS "Include symbols for debugging" OFF)
+OPTION(WITH_NATIVE_COMPLETION "Include native linenoise completion support" ON)
 
 configure_file(config.h.in ${PROJECT_BINARY_DIR}/config.h)
 

@@ -66,7 +66,9 @@ struct linenoise_st
         bool maskmode;
         bool mlmode;
         bool disable_beep;
+#if WITH_NATIVE_COMPLETION
         linenoiseCompletionCallback * completionCallback;
+#endif
 #if WITH_HINTS
         linenoiseHintsCallback * hintsCallback;
         linenoiseFreeHintsCallback * freeHintsCallback;
