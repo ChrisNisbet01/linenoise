@@ -220,10 +220,16 @@ static int isUnsupportedTerm()
     int j;
 
     if (term == NULL)
+    {
         return 0;
+    }
     for (j = 0; unsupported_term[j]; j++)
-        if (!strcasecmp(term, unsupported_term[j]))
+    {
+        if (strcasecmp(term, unsupported_term[j]) == 0)
+        {
             return 1;
+        }
+    }
     return 0;
 }
 
@@ -233,10 +239,14 @@ static int enableRawMode(linenoise_st * const linenoise_ctx, int fd)
     struct termios raw;
 
     if (!isatty(fd))
+    {
         goto fatal;
+    }
 
     if (tcgetattr(fd, &linenoise_ctx->orig_termios) == -1)
+    {
         goto fatal;
+    }
 
     raw = linenoise_ctx->orig_termios;  /* modify the original mode */
     /* input modes: no break, no CR to NL, no parity check, no strip char,
@@ -484,7 +494,7 @@ print_completions(linenoise_st * const linenoise_ctx,
     return c; /* Return last read character */
 }
 
-/* This is an helper function for linenoiseEdit() and is called when the
+/* This is a helper function for linenoiseEdit() and is called when the
  * user types the <tab> key in order to complete the string currently in the
  * input.
  *
@@ -1428,11 +1438,13 @@ int linenoiseHistoryAdd(linenoise_st * const linenoise_ctx, const char * line)
 
     /* Don't add duplicated lines. */
     if (linenoise_ctx->history.current_len
-        && !strcmp(linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1], line))
+        && strcmp(linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1], line) == 0)
         return 0;
 
-    /* Add an heap allocated copy of the line in the history.
-     * If we reached the max length, remove the older line. */
+    /*
+     * Add a heap allocated copy of the line in the history.
+     * If we reached the max length, remove the older line.
+     */
     char * const linecopy = strdup(line);
     if (!linecopy)
     {
