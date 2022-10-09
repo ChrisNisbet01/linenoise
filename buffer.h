@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 
 /* We define a very simple "append buffer" structure, that is an heap
@@ -16,7 +17,11 @@ struct abuf
 
 void linenoise_abInit(struct abuf * ab, size_t initial_capacity);
 
-void linenoise_abAppend(struct abuf * ab, char const * s, size_t len);
+/*
+ * Append characaters to the buffer.
+ * Return true if successful, else false.
+ */
+bool linenoise_abAppend(struct abuf * ab, char const * s, size_t len);
 
 void linenoise_abFree(struct abuf * ab);
 

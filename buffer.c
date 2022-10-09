@@ -13,7 +13,8 @@ void linenoise_abInit(struct abuf * ab, size_t const initial_capacity)
     ab->b = malloc(initial_capacity);
 }
 
-void linenoise_abAppend(
+bool
+linenoise_abAppend(
     struct abuf * const ab,
     char const * const s,
     size_t const len)
@@ -29,13 +30,13 @@ void linenoise_abAppend(
         {
             extra_bytes = MIN_CAPACITY_INCREASE;
         }
-        /* Allow one extra byte for a NUL terminator. */
         size_t const new_capacity = ab->capacity + extra_bytes;
+        /* Allow one extra byte for a NUL terminator. */
         char * const new_buf = realloc(ab->b, new_capacity + 1);
 
         if (new_buf == NULL)
         {
-            return;
+            return false;
         }
         ab->b = new_buf;
         ab->capacity = new_capacity;
@@ -43,11 +44,15 @@ void linenoise_abAppend(
 
     memcpy(ab->b + ab->len, s, len);
     ab->len = required_len;
+
+    return true;
 }
 
 void linenoise_abFree(struct abuf * ab)
 {
     free(ab->b);
+    ab->len = 0;
+    ab->capacity = 0;
 }
 
 

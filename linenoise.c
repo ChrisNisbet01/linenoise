@@ -1258,23 +1258,29 @@ linenoiseRaw(linenoise_st * const linenoise_ctx,
 static char * linenoiseNoTTY(linenoise_st * const linenoise_ctx)
 {
     char * line = NULL;
-    size_t len = 0, maxlen = 0;
+    size_t len = 0;
+    size_t maxlen = 0;
 
     while (1)
     {
         if (len == maxlen)
         {
             if (maxlen == 0)
+            {
                 maxlen = 16;
+            }
             maxlen *= 2;
-            char * oldval = line;
-            line = realloc(line, maxlen);
+            char * const oldval = line;
+            line = realloc(line, maxlen + 1);
             if (line == NULL)
             {
                 if (oldval)
+                {
                     free(oldval);
+                }
                 return NULL;
             }
+            line[len] = '\0';
         }
         int c = fgetc(linenoise_ctx->in.stream);
         if (c == EOF || c == '\n')
@@ -1286,7 +1292,6 @@ static char * linenoiseNoTTY(linenoise_st * const linenoise_ctx)
             }
             else
             {
-                line[len] = '\0';
                 return line;
             }
         }
@@ -1294,8 +1299,11 @@ static char * linenoiseNoTTY(linenoise_st * const linenoise_ctx)
         {
             line[len] = c;
             len++;
+            line[len] = '\0';
         }
     }
+    /* Unreachable */
+    return NULL;
 }
 
 /* The high level function that is the main API of the linenoise library.

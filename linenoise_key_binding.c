@@ -22,28 +22,31 @@ linenoise_delete_text(
     unsigned start,
     unsigned end)
 {
-	unsigned delta;
+    unsigned delta;
 
     if (end == start)
     {
-		return;
+        return;
     }
     struct linenoiseState * const ls = &linenoise_ctx->state;
 
-	/* move any text which is left, including terminator */
-	delta = end - start;
+    /* move any text which is left, including terminator */
+    delta = end - start;
     char * line = linenoise_line_get(linenoise_ctx);
-	memmove(&line[start], &line[start + delta], ls->len + 1 - end);
-	ls->len -= delta;
+    memmove(&line[start], &line[start + delta], ls->len + 1 - end);
+    ls->len -= delta;
 
-	/* now adjust the indexes */
-	if (ls->pos > end) {
-		/* move the insertion point back appropriately */
-		ls->pos -= delta;
-	} else if (ls->pos > start) {
-		/* move the insertion point to the start */
-		ls->pos = start;
-	}
+    /* now adjust the indexes */
+    if (ls->pos > end)
+    {
+        /* move the insertion point back appropriately */
+        ls->pos -= delta;
+    }
+    else if (ls->pos > start)
+    {
+        /* move the insertion point to the start */
+        ls->pos = start;
+    }
 }
 
 /*
@@ -68,7 +71,7 @@ linenoise_insert_text(
     linenoise_st * const linenoise_ctx,
     char const * const text)
 {
-	bool const res = linenoise_insert_text_len(linenoise_ctx, text, strlen(text));
+    bool const res = linenoise_insert_text_len(linenoise_ctx, text, strlen(text));
 
     return res;
 }
@@ -78,27 +81,35 @@ display_matches(
     linenoise_st * const linenoise_ctx,
     char * * matches)
 {
-    char *const *m;
+    char * const * m;
     size_t max;
-    size_t c, cols;
+    size_t c;
 
-    /* find maximum completion length */
+    /* Find maximum completion length */
     max = 0;
-    for (m = matches; *m; m++) {
-        size_t size = strlen(*m);
+    for (m = matches; *m != NULL; m++)
+    {
+        size_t const size = strlen(*m);
+
         if (max < size)
+        {
             max = size;
+        }
     }
 
     /* allow for a space between words */
-    cols = getColumns(linenoise_ctx->in.fd, linenoise_ctx->out.fd) / (max + 1);
+    size_t const cols =
+        getColumns(linenoise_ctx->in.fd, linenoise_ctx->out.fd) / (max + 1);
 
     /* print out a table of completions */
     fprintf(linenoise_ctx->out.stream, "\r\n");
     m = matches;
-    for (m = matches; *m; ) {
+    for (m = matches; *m != NULL;)
+    {
         for (c = 0; c < cols && *m; c++, m++)
+        {
             fprintf(linenoise_ctx->out.stream, "%-*s ", (int)max, *m);
+        }
         fprintf(linenoise_ctx->out.stream, "\r\n");
     }
 }
@@ -107,7 +118,7 @@ bool
 linenoise_complete(
     linenoise_st * const linenoise_ctx,
     unsigned start,
-	char **matches,
+    char ** matches,
     bool allow_prefix)
 {
 /*
@@ -115,23 +126,23 @@ linenoise_complete(
  * required.
  */
 #define DELETE_MISMATCHED_PREFIX 0
-	unsigned end, len;
-	bool did_some_completion;
-	bool prefix;
-	int i;
+    unsigned end, len;
+    bool did_some_completion;
+    bool prefix;
+    int i;
     bool res = false;
 
     if (matches == NULL || matches[0] == NULL)
     {
-		return false;
+        return false;
     }
 
-	/* identify common prefix */
-	len = strlen(matches[0]);
-	prefix = true;
-	for (i = 1; matches[i] != NULL; i++)
+    /* identify common prefix */
+    len = strlen(matches[0]);
+    prefix = true;
+    for (i = 1; matches[i] != NULL; i++)
     {
-		unsigned common;
+        unsigned common;
         for (common = 0; common < len; common++)
         {
             if (matches[0][common] != matches[i][common])
@@ -139,12 +150,12 @@ linenoise_complete(
                 break;
             }
         }
-		if (len != common)
+        if (len != common)
         {
-			len = common;
-			prefix = !matches[i][len];
-		}
-	}
+            len = common;
+            prefix = !matches[i][len];
+        }
+    }
 
     unsigned start_from = 0;
     bool must_refresh = false;
@@ -157,9 +168,9 @@ linenoise_complete(
      */
     if (strncmp(line + start, matches[0], (end - start)) != 0)
     {
-		linenoise_delete_text(linenoise_ctx, start, end);
+        linenoise_delete_text(linenoise_ctx, start, end);
         must_refresh = true;
-	}
+    }
     else
 #endif
     {
@@ -178,14 +189,14 @@ linenoise_complete(
     {
         if (!linenoise_insert_text_len(linenoise_ctx, &matches[0][start_from], len))
         {
-			return false;
+            return false;
         }
-		did_some_completion = true;
+        did_some_completion = true;
     }
     else
     {
-		did_some_completion = false;
-	}
+        did_some_completion = false;
+    }
 
     /* is there only one completion? */
     if (!matches[1])
@@ -194,19 +205,19 @@ linenoise_complete(
         goto done;
     }
 
-	/* is the prefix valid? */
+    /* is the prefix valid? */
     if (prefix && allow_prefix)
     {
         res = true;
         goto done;
     }
 
-	/* display matches if no progress was made */
-	if (!did_some_completion)
+    /* display matches if no progress was made */
+    if (!did_some_completion)
     {
         display_matches(linenoise_ctx, matches);
         must_refresh = true;
-	}
+    }
 
 done:
     if (must_refresh)
@@ -214,7 +225,7 @@ done:
         refreshLine(linenoise_ctx, &linenoise_ctx->state);
     }
 
-	return res;
+    return res;
 }
 
 #endif /* WITH_KEY_BINDING */
