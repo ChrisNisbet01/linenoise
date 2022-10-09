@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.18)
-project(linenoise C)
+
+project(linenoise-niz
+  VERSION 1.0.0
+  DESCRIPTION "Modified fork of linenoise"
+  LANGUAGES C
+)
 
 OPTION(WITH_HINTS "Support hints" ON)
 OPTION(WITH_KEY_BINDING "Support key binding" OFF)
@@ -17,7 +22,7 @@ endif(WITH_DEBUG_SYMBOLS)
 
 add_library(linenoise 
   linenoise.c 
-  linenoise.h 
+  include/linenoise.h 
   buffer.c
   buffer.h
   linenoise_private.h
@@ -26,10 +31,10 @@ add_library(linenoise
   linenoise_key_binding.c
 )
 target_include_directories(linenoise 
-  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
   PRIVATE ${PROJECT_BINARY_DIR}
 )
 
-file(GLOB headers *.h)
+file(GLOB headers include/*.h)
 install(FILES ${headers} DESTINATION include/linenoise)
 install(TARGETS linenoise ARCHIVE DESTINATION lib)
