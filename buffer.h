@@ -7,7 +7,7 @@
  * allocated string where we can append to. This is useful in order to
  * write all the escape sequences in a buffer and flush them to the standard
  * output in a single call, to avoid flickering effects. */
-struct abuf
+struct buffer
 {
     char * b;
     size_t len;
@@ -15,13 +15,19 @@ struct abuf
 };
 
 
-void linenoise_abInit(struct abuf * ab, size_t initial_capacity);
+bool
+linenoise_abInit(struct buffer * ab, size_t initial_capacity);
 
 /*
  * Append characaters to the buffer.
  * Return true if successful, else false.
  */
-bool linenoise_abAppend(struct abuf * ab, char const * s, size_t len);
+bool
+linenoise_abAppend(struct buffer * ab, char const * s, size_t len);
 
-void linenoise_abFree(struct abuf * ab);
+bool
+linenoise_abGrow(struct buffer * ab, size_t amount);
+
+void
+linenoise_abFree(struct buffer * ab);
 

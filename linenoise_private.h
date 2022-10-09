@@ -2,6 +2,8 @@
 
 #include "linenoise.h"
 #include "config.h"
+#include "buffer.h"
+
 #include <termios.h>
 
 #define DEFAULT_TERMINAL_WIDTH 80
@@ -24,8 +26,8 @@ typedef struct key_binding_st
  * functionalities. */
 struct linenoiseState
 {
-    char * buf;          /* Edited line buffer. */
-    size_t buflen;       /* Edited line buffer size. */
+    struct buffer * line_buf;
+
     char const * prompt; /* Prompt to display. */
     size_t prompt_len;   /* Prompt length. */
     size_t pos;          /* Current cursor position. */

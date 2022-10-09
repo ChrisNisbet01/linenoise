@@ -7,14 +7,14 @@
  * to the right of the prompt. */
 void linenoise_hints_refreshShowHints(
     linenoise_st * const linenoise_ctx,
-    struct abuf * ab,
+    struct buffer * ab,
     struct linenoiseState * l, int plen)
 {
     char seq[64];
     if (linenoise_ctx->options.hintsCallback && plen + l->len < l->cols)
     {
         int color = -1, bold = 0;
-        char * hint = linenoise_ctx->options.hintsCallback(l->buf, &color, &bold);
+        char * hint = linenoise_ctx->options.hintsCallback(l->line_buf->b, &color, &bold);
         if (hint)
         {
             int hintlen = strlen(hint);
@@ -39,7 +39,9 @@ void linenoise_hints_refreshShowHints(
             }
             /* Call the function to free the hint returned. */
             if (linenoise_ctx->options.freeHintsCallback)
+            {
                 linenoise_ctx->options.freeHintsCallback(hint);
+            }
         }
     }
 }

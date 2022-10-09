@@ -174,14 +174,18 @@ freeCompletions(linenoiseCompletions * const lc)
 {
     size_t i;
     for (i = 0; i < lc->len; i++)
+    {
         free(lc->cvec[i]);
+    }
     if (lc->cvec != NULL)
+    {
         free(lc->cvec);
+    }
 }
 
 char * linenoise_line_get(linenoise_st * linenoise_ctx)
 {
-    return linenoise_ctx->state.buf;
+    return linenoise_ctx->state.line_buf->b;
 }
 
 size_t linenoise_point_get(linenoise_st * linenoise_ctx)
@@ -423,7 +427,7 @@ print_completions(linenoise_st * const linenoise_ctx,
                   struct linenoiseState * ls,
                   linenoiseCompletions * const lc)
 {
-    int nread, nwritten;
+    int nread;
     char c = 0;
 
     if (lc->len == 0)
@@ -440,13 +444,21 @@ print_completions(linenoise_st * const linenoise_ctx,
             if (i < lc->len)
             {
                 struct linenoiseState saved = *ls;
+                struct buffer temp_buf;
 
-                ls->len = ls->pos = strlen(lc->cvec[i]);
-                ls->buf = lc->cvec[i];
+                /* Construct the temporary buffer */
+                linenoise_abInit(&temp_buf, strlen(lc->cvec[i]));
+                linenoise_abAppend(&temp_buf, lc->cvec[i], strlen(lc->cvec[i]));
+                ls->len = ls->pos = temp_buf.len;
+                ls->line_buf = &temp_buf;
+
                 refreshLine(linenoise_ctx, ls);
+                /* Restore the original line buffer. */
                 ls->len = saved.len;
                 ls->pos = saved.pos;
-                ls->buf = saved.buf;
+                ls->line_buf = saved.line_buf;
+
+                linenoise_abFree(&temp_buf);
             }
             else
             {
@@ -482,8 +494,10 @@ print_completions(linenoise_st * const linenoise_ctx,
                 /* Update buffer and return */
                 if (i < lc->len)
                 {
-                    nwritten = snprintf(ls->buf, ls->buflen, "%s", lc->cvec[i]);
-                    ls->len = ls->pos = nwritten;
+                    linenoise_abFree(ls->line_buf);
+                    linenoise_abInit(ls->line_buf, strlen(lc->cvec[i]));
+                    linenoise_abAppend(ls->line_buf, lc->cvec[i], strlen(lc->cvec[i]));
+                    ls->len = ls->pos = ls->line_buf->len;
                 }
                 stop = 1;
                 break;
@@ -504,7 +518,7 @@ static int completeLine(linenoise_st * const linenoise_ctx, struct linenoiseStat
 {
     linenoiseCompletions lc = { 0, NULL };
 
-    linenoise_ctx->options.completionCallback(ls->buf, &lc);
+    linenoise_ctx->options.completionCallback(ls->line_buf->b, &lc);
     int res = print_completions(linenoise_ctx, ls, &lc);
     freeCompletions(&lc);
 
@@ -552,10 +566,10 @@ refreshSingleLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     char seq[64];
     size_t plen = strlen(l->prompt);
     int const fd = linenoise_ctx->out.fd;
-    char * buf = l->buf;
+    char * buf = l->line_buf->b;
     size_t len = l->len;
     size_t pos = l->pos;
-    struct abuf ab;
+    struct buffer ab;
 
     while ((plen + pos) >= l->cols)
     {
@@ -620,7 +634,7 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     int col; /* column position, zero-based. */
     int old_rows = l->maxrows;
     int const fd = linenoise_ctx->out.fd;
-    struct abuf ab;
+    struct buffer ab;
 
     /* Update maxrows if needed. */
     if (rows > (int)l->maxrows)
@@ -660,7 +674,7 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     }
     else
     {
-        linenoise_abAppend(&ab, l->buf, l->len);
+        linenoise_abAppend(&ab, l->line_buf->b, l->len);
     }
 
 #if WITH_HINTS
@@ -678,7 +692,9 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
         linenoise_abAppend(&ab, seq, strlen(seq));
         rows++;
         if (rows > (int)l->maxrows)
+        {
             l->maxrows = rows;
+        }
     }
 
     /* Move cursor to right position. */
@@ -746,10 +762,12 @@ int linenoiseEditInsert(linenoise_st * const linenoise_ctx,
                         struct linenoiseState * l,
                         char c)
 {
-    if (l->len >= l->buflen)
+    if (l->len > l->line_buf->capacity)
     {
-        /* TODO: Grow the buffer. */
-        goto done;
+        if (!linenoise_abGrow(l->line_buf, l->len - l->line_buf->capacity))
+        {
+            goto done;
+        }
     }
 
     bool require_full_refresh = true;
@@ -777,12 +795,12 @@ int linenoiseEditInsert(linenoise_st * const linenoise_ctx,
     /* Insert the new char into the line buffer. */
     if (l->len != l->pos)
     {
-        memmove(l->buf + l->pos + 1, l->buf + l->pos, l->len - l->pos);
+        memmove(l->line_buf->b + l->pos + 1, l->line_buf->b + l->pos, l->len - l->pos);
     }
-    l->buf[l->pos] = c;
+    l->line_buf->b[l->pos] = c;
     l->len++;
     l->pos++;
-    l->buf[l->len] = '\0';
+    l->line_buf->b[l->len] = '\0';
 
     if (require_full_refresh)
     {
@@ -858,7 +876,7 @@ static void linenoiseEditHistoryNext(linenoise_st * const linenoise_ctx,
         /* Update the current history entry before to
          * overwrite it with the next one. */
         free(linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index]);
-        linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index] = strdup(l->buf);
+        linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index] = strdup(l->line_buf->b);
         /* Show the new entry */
         l->history_index += (dir == LINENOISE_HISTORY_PREV) ? 1 : -1;
         if (l->history_index < 0)
@@ -871,9 +889,13 @@ static void linenoiseEditHistoryNext(linenoise_st * const linenoise_ctx,
             l->history_index = linenoise_ctx->history.current_len - 1;
             return;
         }
-        strncpy(l->buf, linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index], l->buflen);
-        l->buf[l->buflen - 1] = '\0';
-        l->len = l->pos = strlen(l->buf);
+        linenoise_abFree(l->line_buf);
+        linenoise_abInit(l->line_buf,
+                         strlen(linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index]));
+        linenoise_abAppend(l->line_buf,
+                           linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index],
+                           strlen(linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index]));
+        l->len = l->pos = l->line_buf->len;
         refreshLine(linenoise_ctx, l);
     }
 }
@@ -885,9 +907,9 @@ static void linenoiseEditDelete(linenoise_st * const linenoise_ctx,
 {
     if (l->len > 0 && l->pos < l->len)
     {
-        memmove(l->buf + l->pos, l->buf + l->pos + 1, l->len - l->pos - 1);
+        memmove(l->line_buf->b + l->pos, l->line_buf->b + l->pos + 1, l->len - l->pos - 1);
         l->len--;
-        l->buf[l->len] = '\0';
+        l->line_buf->b[l->len] = '\0';
         refreshLine(linenoise_ctx, l);
     }
 }
@@ -898,10 +920,10 @@ static void linenoiseEditBackspace(linenoise_st * const linenoise_ctx,
 {
     if (l->pos > 0 && l->len > 0)
     {
-        memmove(l->buf + l->pos - 1, l->buf + l->pos, l->len - l->pos);
+        memmove(l->line_buf->b + l->pos - 1, l->line_buf->b + l->pos, l->len - l->pos);
         l->pos--;
         l->len--;
-        l->buf[l->len] = '\0';
+        l->line_buf->b[l->len] = '\0';
         refreshLine(linenoise_ctx, l);
     }
 }
@@ -914,12 +936,16 @@ static void linenoiseEditDeletePrevWord(linenoise_st * const linenoise_ctx,
     size_t old_pos = l->pos;
     size_t diff;
 
-    while (l->pos > 0 && l->buf[l->pos - 1] == ' ')
+    while (l->pos > 0 && l->line_buf->b[l->pos - 1] == ' ')
+    {
         l->pos--;
-    while (l->pos > 0 && l->buf[l->pos - 1] != ' ')
+    }
+    while (l->pos > 0 && l->line_buf->b[l->pos - 1] != ' ')
+    {
         l->pos--;
+    }
     diff = old_pos - l->pos;
-    memmove(l->buf + l->pos, l->buf + old_pos, l->len - old_pos + 1);
+    memmove(l->line_buf->b + l->pos, l->line_buf->b + old_pos, l->len - old_pos + 1);
     l->len -= diff;
     refreshLine(linenoise_ctx, l);
 }
@@ -927,7 +953,7 @@ static void linenoiseEditDeletePrevWord(linenoise_st * const linenoise_ctx,
 static void
 delete_whole_line(linenoise_st * const linenoise_ctx, struct linenoiseState *l)
 {
-    l->buf[0] = '\0';
+    l->line_buf->b[0] = '\0';
     l->pos = 0;
     l->len = 0;
     refreshLine(linenoise_ctx, l);
@@ -938,6 +964,7 @@ linenoise_edit_done(linenoise_st * const linenoise_ctx, struct linenoiseState *l
 {
     linenoise_ctx->history.current_len--;
     free(linenoise_ctx->history.history[linenoise_ctx->history.current_len]);
+    linenoise_ctx->history.history[linenoise_ctx->history.current_len] = NULL;
     if (linenoise_ctx->options.mlmode)
     {
         linenoiseEditMoveEnd(linenoise_ctx, l);
@@ -978,7 +1005,7 @@ ctrl_c_handler_default(linenoise_st * const linenoise_ctx, struct linenoiseState
  * The function returns the length of the current buffer. */
 static int linenoiseEdit(linenoise_st * const linenoise_ctx,
                          int stdin_fd, int stdout_fd,
-                         char * buf, size_t buflen,
+                         struct buffer * const line_buf,
                          const char * prompt)
 {
     memset(&linenoise_ctx->state, 0, sizeof linenoise_ctx->state);
@@ -987,8 +1014,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
 
     /* Populate the linenoise state that we pass to functions implementing
      * specific editing functionalities. */
-    l->buf = buf;
-    l->buflen = buflen;
+    l->line_buf = line_buf;
     l->prompt = prompt;
     l->prompt_len = strlen(prompt);
     l->oldpos = 0;
@@ -999,8 +1025,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
     l->history_index = 0;
 
     /* Buffer starts empty. */
-    l->buf[0] = '\0';
-    l->buflen--; /* Make sure there is always space for the nulterm */
+    l->line_buf->b[0] = '\0';
 
     /* The latest history entry is always our current buffer, that
      * initially is just an empty string. */
@@ -1074,6 +1099,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
             {
                 linenoise_ctx->history.current_len--;
                 free(linenoise_ctx->history.history[linenoise_ctx->history.current_len]);
+                linenoise_ctx->history.history[linenoise_ctx->history.current_len] = NULL;
                 return -1;
             }
             break;
@@ -1081,11 +1107,13 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
         case CTRL_T:    /* ctrl-t, swaps current character with previous. */
             if (l->pos > 0 && l->pos < l->len)
             {
-                int aux = buf[l->pos - 1];
-                buf[l->pos - 1] = buf[l->pos];
-                buf[l->pos] = aux;
+                int aux = l->line_buf->b[l->pos - 1];
+                l->line_buf->b[l->pos - 1] = l->line_buf->b[l->pos];
+                l->line_buf->b[l->pos] = aux;
                 if (l->pos != l->len - 1)
+                {
                     l->pos++;
+                }
                 refreshLine(linenoise_ctx, l);
             }
             break;
@@ -1194,7 +1222,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
             break;
 
         case CTRL_K: /* Ctrl+k, delete from current to end of line. */
-            buf[l->pos] = '\0';
+            l->line_buf->b[l->pos] = '\0';
             l->len = l->pos;
             refreshLine(linenoise_ctx, l);
             break;
@@ -1259,22 +1287,16 @@ void linenoisePrintKeyCodes(linenoise_st * const linenoise_ctx)
  * the in_fd file descriptor set in raw mode. */
 static int
 linenoiseRaw(linenoise_st * const linenoise_ctx,
-             char * buf, size_t buflen,
+             struct buffer * const line_buf,
              const char * prompt)
 {
     int count;
-
-    if (buflen == 0)
-    {
-        errno = EINVAL;
-        return -1;
-    }
 
     if (enableRawMode(linenoise_ctx, linenoise_ctx->in.fd) == -1)
     {
         return -1;
     }
-    count = linenoiseEdit(linenoise_ctx, linenoise_ctx->in.fd, linenoise_ctx->out.fd, buf, buflen, prompt);
+    count = linenoiseEdit(linenoise_ctx, linenoise_ctx->in.fd, linenoise_ctx->out.fd, line_buf, prompt);
     disableRawMode(linenoise_ctx, linenoise_ctx->in.fd);
     fprintf(linenoise_ctx->out.stream, "\n");
 
@@ -1349,7 +1371,6 @@ static char * linenoiseNoTTY(linenoise_st * const linenoise_ctx)
  * something even in the most desperate of the conditions. */
 char * linenoise(linenoise_st * const linenoise_ctx, const char * prompt)
 {
-    char buf[LINENOISE_MAX_LINE];
     int count;
 
     if (!linenoise_ctx->is_a_tty)
@@ -1361,30 +1382,47 @@ char * linenoise(linenoise_st * const linenoise_ctx, const char * prompt)
     else if (isUnsupportedTerm())
     {
         size_t len;
+        struct buffer line_buf;
+
+        linenoise_abInit(&line_buf, LINENOISE_MAX_LINE);
 
         fprintf(linenoise_ctx->out.stream, "%s", prompt);
         fflush(linenoise_ctx->out.stream);
 
-        if (fgets(buf, sizeof buf, linenoise_ctx->in.stream) == NULL)
+        if (fgets(line_buf.b, line_buf.capacity, linenoise_ctx->in.stream) == NULL)
         {
             return NULL;
         }
-        len = strlen(buf);
-        while (len && (buf[len - 1] == '\n' || buf[len - 1] == '\r'))
+        len = strlen(line_buf.b);
+        while (len && (line_buf.b[len - 1] == '\n' || line_buf.b[len - 1] == '\r'))
         {
             len--;
-            buf[len] = '\0';
+            line_buf.b[len] = '\0';
         }
-        return strdup(buf);
+        char * const line = strdup(line_buf.b);
+
+        linenoise_abFree(&line_buf);
+        return line;
     }
     else
     {
-        count = linenoiseRaw(linenoise_ctx, buf, sizeof buf, prompt);
+        struct buffer line_buf;
+
+        linenoise_abInit(&line_buf, 100);
+
+        count = linenoiseRaw(linenoise_ctx, &line_buf, prompt);
+        char * line;
         if (count == -1)
         {
-            return NULL;
+            line = NULL;
         }
-        return strdup(buf);
+        else
+        {
+            line = strdup(line_buf.b);
+        }
+
+        linenoise_abFree(&line_buf);
+        return line;
     }
 }
 
@@ -1405,10 +1443,10 @@ static void freeHistory(linenoise_st * const linenoise_ctx)
 {
     if (linenoise_ctx->history.history)
     {
-        int j;
-
-        for (j = 0; j < linenoise_ctx->history.current_len; j++)
+        for (int j = 0; j < linenoise_ctx->history.current_len; j++)
+        {
             free(linenoise_ctx->history.history[j]);
+        }
         free(linenoise_ctx->history.history);
     }
 }
@@ -1430,10 +1468,13 @@ int linenoiseHistoryAdd(linenoise_st * const linenoise_ctx, const char * line)
     /* Initialization on first call. */
     if (linenoise_ctx->history.history == NULL)
     {
-        linenoise_ctx->history.history = malloc(sizeof(char *) * linenoise_ctx->history.max_len);
+        linenoise_ctx->history.history =
+            calloc(sizeof(*linenoise_ctx->history.history),
+                   linenoise_ctx->history.max_len);
         if (linenoise_ctx->history.history == NULL)
+        {
             return 0;
-        memset(linenoise_ctx->history.history, 0, (sizeof(char *) * linenoise_ctx->history.max_len));
+        }
     }
 
     /* Don't add duplicated lines. */
@@ -1468,11 +1509,14 @@ int linenoiseHistoryAdd(linenoise_st * const linenoise_ctx, const char * line)
 int linenoiseHistorySetMaxLen(linenoise_st * const linenoise_ctx, int const len)
 {
     if (len < 1)
+    {
         return 0;
+    }
     if (linenoise_ctx->history.history)
     {
         int tocopy = linenoise_ctx->history.current_len;
-        char ** new_history = malloc(sizeof(char *) * len);
+        char ** new_history = calloc(sizeof(*new_history), len);
+
         if (new_history == NULL)
         {
             return 0;
@@ -1481,20 +1525,21 @@ int linenoiseHistorySetMaxLen(linenoise_st * const linenoise_ctx, int const len)
         /* If we can't copy everything, free the elements we'll not use. */
         if (len < tocopy)
         {
-            int j;
-
-            for (j = 0; j < tocopy - len; j++)
+            for (int j = 0; j < tocopy - len; j++)
+            {
                 free(linenoise_ctx->history.history[j]);
+            }
             tocopy = len;
         }
-        memset(new_history, 0, sizeof(char *) * len);
         memcpy(new_history, linenoise_ctx->history.history + (linenoise_ctx->history.current_len - tocopy), sizeof(char *) * tocopy);
         free(linenoise_ctx->history.history);
         linenoise_ctx->history.history = new_history;
     }
     linenoise_ctx->history.max_len = len;
     if (linenoise_ctx->history.current_len > linenoise_ctx->history.max_len)
+    {
         linenoise_ctx->history.current_len = linenoise_ctx->history.max_len;
+    }
     return 1;
 }
 

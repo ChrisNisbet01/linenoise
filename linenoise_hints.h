@@ -5,7 +5,7 @@
 
 void linenoise_hints_refreshShowHints(
     linenoise_st * const linenoise_ctx,
-    struct abuf * ab,
+    struct buffer * ab,
     struct linenoiseState * l,
     int plen);
 
