@@ -2,7 +2,7 @@
 #include "linenoise_private.h"
 
 
-#ifdef WITH_KEY_BINDING
+#if WITH_KEY_BINDING
 #include <string.h>
 
 void
@@ -115,9 +115,6 @@ linenoise_complete(
  * required.
  */
 #define DELETE_MISMATCHED_PREFIX 0
-#if DELETE_MISMATCHED_PREFIX
-	const char *line;
-#endif
 	unsigned end, len;
 	bool did_some_completion;
 	bool prefix;
@@ -149,15 +146,11 @@ linenoise_complete(
 		}
 	}
 
-	/* insert common prefix */
-#if DELETE_MISMATCHED_PREFIX
-	line = linenoise_line_get(linenoise_ctx);
-#endif
-	end = linenoise_point_get(linenoise_ctx);
     unsigned start_from = 0;
     bool must_refresh = false;
-
+    end = linenoise_point_get(linenoise_ctx);
 #if DELETE_MISMATCHED_PREFIX
+    char const * line = linenoise_line_get(linenoise_ctx);
     /*
      * Only delete chars if there is a mismatch between line and the common
      * match prefix.
@@ -178,6 +171,8 @@ linenoise_complete(
         start_from = end - start;
         len -= end - start;
     }
+
+    /* Insert the rest of the common prefix */
 
     if (len > 0)
     {

@@ -61,7 +61,13 @@ void linenoiseSetFreeHintsCallback(linenoise_st * linenoise_ctx, linenoiseFreeHi
 
 void linenoiseAddCompletion(linenoiseCompletions * completions, const char * completion);
 
+/*
+ * Get the current pointer to the line buffer. Note that any changes made by
+ * callbacks may result in this pointer becoming invalid, so it should be
+ * reobtained after any modification.
+ */
 char * linenoise_line_get(linenoise_st * linenoise_ctx);
+
 size_t linenoise_point_get(linenoise_st * linenoise_ctx);
 
 void linenoise_delete_text(

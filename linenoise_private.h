@@ -53,7 +53,7 @@ struct linenoise_st
     bool in_raw_mode;
     struct termios orig_termios;
 
-#ifdef WITH_KEY_BINDING
+#if WITH_KEY_BINDING
     key_binding_st key_bindings[256]; /* One for each character. */
 #endif
 
@@ -65,7 +65,7 @@ struct linenoise_st
         bool mlmode;
         bool disable_beep;
         linenoiseCompletionCallback * completionCallback;
-#ifdef WITH_HINTS
+#if WITH_HINTS
         linenoiseHintsCallback * hintsCallback;
         linenoiseFreeHintsCallback * freeHintsCallback;
 #endif

@@ -3,19 +3,7 @@ project(linenoise C)
 
 OPTION(WITH_HINTS "Support hints" ON)
 OPTION(WITH_KEY_BINDING "Support key binding" OFF)
-OPTION(TERMINAL_WIDTH_USING_ESCAPE_CODES "Attempt to get terminal width using ESCAPE codes if ioctl calls fail" ON)
-
-if(WITH_HINTS)
-  set (BUILD_WITH_HINTS 1)
-endif(WITH_HINTS)
-
-if(WITH_KEY_BINDING)
-  set (BUILD_WITH_KEY_BINDING 1)
-endif(WITH_KEY_BINDING)
-
-if(TERMINAL_WIDTH_USING_ESCAPE_CODES)
-  set(QUERY_TERMINAL_FOR_WIDTH 1)
-endif(TERMINAL_WIDTH_USING_ESCAPE_CODES)
+OPTION(QUERY_TERMINAL_FOR_WIDTH "Attempt to get terminal width using ESCAPE codes if ioctl calls fail" ON)
 
 configure_file(config.h.in ${PROJECT_BINARY_DIR}/config.h)
 

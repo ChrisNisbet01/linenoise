@@ -106,7 +106,7 @@
 #include "linenoise.h"
 #include "linenoise_private.h"
 #include "buffer.h"
-#ifdef WITH_HINTS
+#if WITH_HINTS
 #include "linenoise_hints.h"
 #endif
 
@@ -277,7 +277,7 @@ disableRawMode(linenoise_st * const linenoise_ctx, int fd)
     }
 }
 
-#ifdef QUERY_TERMINAL_FOR_WIDTH
+#if QUERY_TERMINAL_FOR_WIDTH
 /* Use the ESC [6n escape sequence to query the horizontal cursor position
  * and return it. On error -1 is returned, on success the position of the
  * cursor. */
@@ -319,7 +319,7 @@ int getColumns(int ifd, int ofd)
 
     if (ioctl(ofd, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0)
     {
-#ifdef QUERY_TERMINAL_FOR_WIDTH
+#if QUERY_TERMINAL_FOR_WIDTH
         /* ioctl() failed. Try to query the terminal itself. */
         int start, cols;
 
@@ -537,7 +537,7 @@ refreshSingleLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
         len--;
     }
 
-    linenoise_abInit(&ab);
+    linenoise_abInit(&ab, 20);
     /* Cursor to left edge */
     snprintf(seq, sizeof seq, "\r");
     linenoise_abAppend(&ab, seq, strlen(seq));
@@ -554,7 +554,7 @@ refreshSingleLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
     {
         linenoise_abAppend(&ab, buf, len);
     }
-#ifdef WITH_HINTS
+#if WITH_HINTS
     /* Show hints if any. */
     linenoise_hints_refreshShowHints(linenoise_ctx, &ab, l, plen);
 #endif
@@ -597,7 +597,7 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
 
     /* First step: clear all the lines used before. To do so start by
      * going to the last row. */
-    linenoise_abInit(&ab);
+    linenoise_abInit(&ab, 20);
     if (old_rows - rpos > 0)
     {
         lndebug("go down %d", old_rows - rpos);
@@ -632,7 +632,7 @@ refreshMultiLine(linenoise_st * const linenoise_ctx, struct linenoiseState * l)
         linenoise_abAppend(&ab, l->buf, l->len);
     }
 
-#ifdef WITH_HINTS
+#if WITH_HINTS
     /* Show hints if any. */
     linenoise_hints_refreshShowHints(linenoise_ctx, &ab, l, plen);
 #endif
@@ -912,7 +912,7 @@ linenoise_edit_done(linenoise_st * const linenoise_ctx, struct linenoiseState *l
         linenoiseEditMoveEnd(linenoise_ctx, l);
     }
 
-#ifdef WITH_HINTS
+#if WITH_HINTS
     if (linenoise_ctx->options.hintsCallback != NULL)
     {
         /*
@@ -991,7 +991,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
             return l->len;
 
 
-#ifdef WITH_KEY_BINDING
+#if WITH_KEY_BINDING
         if (linenoise_ctx->key_bindings[(unsigned)c].handler != NULL)
         {
             size_t const index = (unsigned)c;
@@ -1189,7 +1189,7 @@ static int linenoiseEdit(linenoise_st * const linenoise_ctx,
     return l->len;
 }
 
-#ifdef LINENOISE_PRINT_KEY_CODES_SUPPORT
+#if LINENOISE_PRINT_KEY_CODES_SUPPORT
 /* This special mode is used by linenoise in order to print scan codes
  * on screen for debugging / development purposes. It is implemented
  * by the linenoise_example program using the --keycodes option. */
@@ -1450,7 +1450,7 @@ int linenoiseHistorySetMaxLen(linenoise_st * const linenoise_ctx, int const len)
     return 1;
 }
 
-#ifdef LINENOISE_HISTORY_FILE_SUPPORT
+#if LINENOISE_HISTORY_FILE_SUPPORT
 /* Save the history in the specified file. On success 0 is returned
  * otherwise -1 is returned. */
 int linenoiseHistorySave(const char * filename)

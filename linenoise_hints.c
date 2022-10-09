@@ -1,6 +1,6 @@
 #include "linenoise_hints.h"
 
-#ifdef WITH_HINTS
+#if WITH_HINTS
 #include <string.h>
 
 /* Helper of refreshSingleLine() and refreshMultiLine() to show hints
