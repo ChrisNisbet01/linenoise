@@ -12,7 +12,7 @@
 
 struct linenoiseCompletions {
   size_t len;
-  char **cvec;
+  char * * cvec;
 };
 
 typedef struct key_binding_st
@@ -90,7 +90,8 @@ bool
 refreshLine(linenoise_st * linenoise_ctx, struct linenoiseState * l);
 
 int
-linenoiseEditInsert(linenoise_st * linenoise_ctx,
-                    struct linenoiseState * l,
-                    char c);
+linenoiseEditInsert(
+    linenoise_st * linenoise_ctx,
+    struct linenoiseState * l,
+    char c);
 

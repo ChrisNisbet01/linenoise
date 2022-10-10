@@ -11,12 +11,8 @@
 bool
 linenoise_buffer_grow(struct buffer * const ab, size_t const amount)
 {
-    size_t extra_bytes = amount;
-
-    if (extra_bytes < MIN_CAPACITY_INCREASE)
-    {
-        extra_bytes = MIN_CAPACITY_INCREASE;
-    }
+    size_t const extra_bytes =
+        (amount < MIN_CAPACITY_INCREASE) ? MIN_CAPACITY_INCREASE : amount;
     size_t const new_capacity = ab->capacity + extra_bytes;
     /* Allow one extra byte for a NUL terminator. */
     char * const new_buf = realloc(ab->b, new_capacity + 1);
@@ -32,7 +28,7 @@ linenoise_buffer_grow(struct buffer * const ab, size_t const amount)
 }
 
 bool
-linenoise_buffer_init(struct buffer * ab, size_t const initial_capacity)
+linenoise_buffer_init(struct buffer * const ab, size_t const initial_capacity)
 {
     ab->len = 0;
     ab->capacity = 0;
@@ -71,7 +67,7 @@ linenoise_buffer_append(
     return true;
 }
 
-void linenoise_buffer_free(struct buffer * ab)
+void linenoise_buffer_free(struct buffer * const ab)
 {
     free(ab->b);
     ab->b = NULL;
@@ -81,7 +77,8 @@ void linenoise_buffer_free(struct buffer * ab)
 
 int linenoise_buffer_snprintf(
     struct buffer * const ab,
-    char * const buf, size_t const buf_size,
+    char * const buf,
+    size_t const buf_size,
     char const * const fmt, ...)
 {
     va_list arg_ptr;
@@ -94,3 +91,4 @@ int linenoise_buffer_snprintf(
 
     return res;
 }
+

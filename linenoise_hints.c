@@ -16,6 +16,7 @@ linenoise_hints_refreshShowHints(
     {
         int color = -1, bold = 0;
         char * hint = linenoise_ctx->options.hintsCallback(l->line_buf->b, &color, &bold);
+
         if (hint != NULL)
         {
             char seq[64];
@@ -51,8 +52,9 @@ linenoise_hints_refreshShowHints(
 /* Register a hits function to be called to show hits to the user at the
  * right of the prompt. */
 void
-linenoiseSetHintsCallback(linenoise_st * const linenoise_ctx,
-                          linenoiseHintsCallback * const fn)
+linenoiseSetHintsCallback(
+    linenoise_st * const linenoise_ctx,
+    linenoiseHintsCallback * const fn)
 {
     linenoise_ctx->options.hintsCallback = fn;
 }
@@ -60,8 +62,9 @@ linenoiseSetHintsCallback(linenoise_st * const linenoise_ctx,
 /* Register a function to free the hints returned by the hints callback
  * registered with linenoiseSetHintsCallback(). */
 void
-linenoiseSetFreeHintsCallback(linenoise_st * const linenoise_ctx,
-                              linenoiseFreeHintsCallback * const fn)
+linenoiseSetFreeHintsCallback(
+    linenoise_st * const linenoise_ctx,
+    linenoiseFreeHintsCallback * const fn)
 {
     linenoise_ctx->options.freeHintsCallback = fn;
 }

@@ -52,64 +52,96 @@ typedef struct linenoise_st linenoise_st;
 typedef struct linenoiseCompletions linenoiseCompletions;
 
 typedef void(linenoiseCompletionCallback)(const char *, linenoiseCompletions *);
+
 typedef char*(linenoiseHintsCallback)(const char *, int *color, int *bold);
+
 typedef void(linenoiseFreeHintsCallback)(void *);
-void linenoiseSetCompletionCallback(linenoise_st * linenoise_ctx, linenoiseCompletionCallback * cb);
 
-void linenoiseSetHintsCallback(linenoise_st * linenoise_ctx, linenoiseHintsCallback * cb);
-void linenoiseSetFreeHintsCallback(linenoise_st * linenoise_ctx, linenoiseFreeHintsCallback * cb);
+void
+linenoiseSetCompletionCallback(linenoise_st * linenoise_ctx, linenoiseCompletionCallback * cb);
 
-void linenoiseAddCompletion(linenoiseCompletions * completions, const char * completion);
+void
+linenoiseSetHintsCallback(linenoise_st * linenoise_ctx, linenoiseHintsCallback * cb);
+
+void
+linenoiseSetFreeHintsCallback(linenoise_st * linenoise_ctx, linenoiseFreeHintsCallback * cb);
+
+void linenoiseAddCompletion(linenoiseCompletions * completions, char const * completion);
 
 /*
  * Get the current pointer to the line buffer. Note that any changes made by
  * callbacks may result in this pointer becoming invalid, so it should be
  * reobtained after any modification.
  */
-char * linenoise_line_get(linenoise_st * linenoise_ctx);
+char *
+linenoise_line_get(linenoise_st * linenoise_ctx);
 
-size_t linenoise_point_get(linenoise_st * linenoise_ctx);
+size_t
+linenoise_point_get(linenoise_st * linenoise_ctx);
 
-void linenoise_delete_text(
-    linenoise_st * const linenoise_ctx,
+void
+linenoise_delete_text(
+    linenoise_st * linenoise_ctx,
     unsigned start,
     unsigned end);
 
-bool linenoise_insert_text_len(
-    linenoise_st * const linenoise_ctx,
-    const char * text,
+bool
+linenoise_insert_text_len(
+    linenoise_st * linenoise_ctx,
+    char const * text,
     unsigned delta);
 
-bool linenoise_insert_text(linenoise_st * const linenoise_ctx, const char * text);
+bool
+linenoise_insert_text(linenoise_st * linenoise_ctx, char const * text);
 
 bool linenoise_complete(
-    linenoise_st * const linenoise_ctx,
+    linenoise_st * linenoise_ctx,
     unsigned start,
     char * * matches,
     bool allow_prefix);
 
 
 typedef bool (*key_binding_handler_cb)(linenoise_st * linenoise_ctx, char key, void * user_ctx);
-void linenoise_bind_key(linenoise_st * linenoise_ctx, uint8_t key, key_binding_handler_cb handler, void * user_ctx);
 
-char *linenoise(linenoise_st * linenoise_ctx, const char *prompt);
-void linenoiseFree(void *ptr);
-int linenoiseHistoryAdd(linenoise_st * linenoise_ctx, const char *line);
-int linenoiseHistorySetMaxLen(linenoise_st * linenoise_ctx, int len);
+void
+linenoise_bind_key(linenoise_st * linenoise_ctx, uint8_t key, key_binding_handler_cb handler, void * user_ctx);
+
+char *
+linenoise(linenoise_st * linenoise_ctx, char const * prompt);
+
+void
+linenoiseFree(void *ptr);
+
+int
+linenoiseHistoryAdd(linenoise_st * linenoise_ctx, char const * line);
+
+int
+linenoiseHistorySetMaxLen(linenoise_st * linenoise_ctx, int len);
 
 #ifdef LINENOISE_HISTORY_FILE_SUPPORT
-int linenoiseHistorySave(const char *filename);
-int linenoiseHistoryLoad(const char *filename);
+int
+linenoiseHistorySave(linenoise_st * linenoise_ctx, char const * filename);
+
+int
+linenoiseHistoryLoad(linenoise_st * linenoise_ctx, char const * filename);
 #endif
 
-void linenoiseClearScreen(linenoise_st * linenoise_ctx);
-void linenoiseSetMultiLine(linenoise_st * linenoise_ctx, bool ml);
+void
+linenoiseClearScreen(linenoise_st * linenoise_ctx);
+
+void
+linenoiseSetMultiLine(linenoise_st * linenoise_ctx, bool ml);
 
 #ifdef LINENOISE_PRINT_KEY_CODES_SUPPORT
-void linenoisePrintKeyCodes(linenoise_st * linenoise_ctx);
+void
+linenoisePrintKeyCodes(linenoise_st * linenoise_ctx);
 #endif
-void linenoiseMaskModeEnable(linenoise_st * linenoise_ctx);
-void linenoiseMaskModeDisable(linenoise_st * linenoise_ctx);
+
+void
+linenoiseMaskModeEnable(linenoise_st * linenoise_ctx);
+
+void
+linenoiseMaskModeDisable(linenoise_st * linenoise_ctx);
 
 void
 linenoiseBeepControl(linenoise_st * linenoise_ctx, bool enable);
@@ -125,3 +157,4 @@ linenoise_delete(linenoise_st * linenoise);
 #endif
 
 #endif /* __LINENOISE_H */
+

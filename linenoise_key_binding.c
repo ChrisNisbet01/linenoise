@@ -22,8 +22,6 @@ linenoise_delete_text(
     unsigned const start,
     unsigned const end)
 {
-    unsigned delta;
-
     if (end == start)
     {
         return;
@@ -31,7 +29,7 @@ linenoise_delete_text(
     struct linenoiseState * const ls = &linenoise_ctx->state;
 
     /* move any text which is left, including terminator */
-    delta = end - start;
+    unsigned const delta = end - start;
     char * line = linenoise_line_get(linenoise_ctx);
     memmove(&line[start], &line[start + delta], ls->len + 1 - end);
     ls->len -= delta;
@@ -116,19 +114,17 @@ display_matches(
 bool
 linenoise_complete(
     linenoise_st * const linenoise_ctx,
-    unsigned start,
+    unsigned const start,
     char * * const matches,
-    bool allow_prefix)
+    bool const allow_prefix)
 {
 /*
  * I don't think there's ever a time when deleting part of the line is
  * required.
  */
 #define DELETE_MISMATCHED_PREFIX 0
-    unsigned end, len;
     bool did_some_completion;
     bool prefix;
-    int i;
     bool res = false;
 
     if (matches == NULL || matches[0] == NULL)
@@ -137,9 +133,9 @@ linenoise_complete(
     }
 
     /* identify common prefix */
-    len = strlen(matches[0]);
+    unsigned len = strlen(matches[0]);
     prefix = true;
-    for (i = 1; matches[i] != NULL; i++)
+    for (size_t i = 1; matches[i] != NULL; i++)
     {
         unsigned common;
 
@@ -159,9 +155,9 @@ linenoise_complete(
 
     unsigned start_from = 0;
     bool must_refresh = false;
-    end = linenoise_point_get(linenoise_ctx);
+    unsigned const end = linenoise_point_get(linenoise_ctx);
 #if DELETE_MISMATCHED_PREFIX
-    char const * line = linenoise_line_get(linenoise_ctx);
+    char const * const line = linenoise_line_get(linenoise_ctx);
     /*
      * Only delete chars if there is a mismatch between line and the common
      * match prefix.
