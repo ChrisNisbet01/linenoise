@@ -36,8 +36,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __LINENOISE_H
-#define __LINENOISE_H
+#ifndef LINENOISE_H__
+#define LINENOISE_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -101,10 +101,17 @@ bool linenoise_complete(
     bool allow_prefix);
 
 
-typedef bool (*key_binding_handler_cb)(linenoise_st * linenoise_ctx, char key, void * user_ctx);
+typedef bool (*key_binding_handler_cb)(
+    linenoise_st * linenoise_ctx,
+    char key,
+    void * user_ctx);
 
 void
-linenoise_bind_key(linenoise_st * linenoise_ctx, uint8_t key, key_binding_handler_cb handler, void * user_ctx);
+linenoise_bind_key(
+    linenoise_st * linenoise_ctx,
+    uint8_t key,
+    key_binding_handler_cb handler,
+    void * user_ctx);
 
 char *
 linenoise(linenoise_st * linenoise_ctx, char const * prompt);
@@ -118,13 +125,11 @@ linenoiseHistoryAdd(linenoise_st * linenoise_ctx, char const * line);
 int
 linenoiseHistorySetMaxLen(linenoise_st * linenoise_ctx, int len);
 
-#ifdef LINENOISE_HISTORY_FILE_SUPPORT
 int
 linenoiseHistorySave(linenoise_st * linenoise_ctx, char const * filename);
 
 int
 linenoiseHistoryLoad(linenoise_st * linenoise_ctx, char const * filename);
-#endif
 
 void
 linenoiseClearScreen(linenoise_st * linenoise_ctx);
@@ -132,10 +137,8 @@ linenoiseClearScreen(linenoise_st * linenoise_ctx);
 void
 linenoiseSetMultiLine(linenoise_st * linenoise_ctx, bool ml);
 
-#ifdef LINENOISE_PRINT_KEY_CODES_SUPPORT
 void
 linenoisePrintKeyCodes(linenoise_st * linenoise_ctx);
-#endif
 
 void
 linenoiseMaskModeEnable(linenoise_st * linenoise_ctx);
@@ -156,5 +159,5 @@ linenoise_delete(linenoise_st * linenoise);
 }
 #endif
 
-#endif /* __LINENOISE_H */
+#endif /* LINENOISE_H__ */
 
