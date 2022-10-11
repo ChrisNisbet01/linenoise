@@ -118,11 +118,6 @@ linenoise_complete(
     char * * const matches,
     bool const allow_prefix)
 {
-/*
- * I don't think there's ever a time when deleting part of the line is
- * required.
- */
-#define DELETE_MISMATCHED_PREFIX 0
     bool did_some_completion;
     bool prefix;
     bool res = false;
@@ -154,30 +149,15 @@ linenoise_complete(
     }
 
     unsigned start_from = 0;
-    bool must_refresh = false;
     unsigned const end = linenoise_point_get(linenoise_ctx);
-#if DELETE_MISMATCHED_PREFIX
-    char const * const line = linenoise_line_get(linenoise_ctx);
+
     /*
-     * Only delete chars if there is a mismatch between line and the common
-     * match prefix.
+     * The portion of the match from the start to the cursor position
+     * matches so it's only necessary to insert from that position now.
+     * Exclude the characters that already match.
      */
-    if (strncmp(line + start, matches[0], (end - start)) != 0)
-    {
-        linenoise_delete_text(linenoise_ctx, start, end);
-        must_refresh = true;
-    }
-    else
-#endif
-    {
-        /*
-         * The portion of the match from the start to the cursor position
-         * matches so it's only necessary to insert from that position now.
-         * Exclude the characters that already match.
-         */
-        start_from = end - start;
-        len -= end - start;
-    }
+    start_from = end - start;
+    len -= end - start;
 
     /* Insert the rest of the common prefix */
 
@@ -212,14 +192,10 @@ linenoise_complete(
     if (!did_some_completion)
     {
         display_matches(linenoise_ctx, matches);
-        must_refresh = true;
+        refresh_line_check_row_clear(linenoise_ctx, &linenoise_ctx->state, false);
     }
 
 done:
-    if (must_refresh)
-    {
-        refreshLine(linenoise_ctx, &linenoise_ctx->state);
-    }
 
     return res;
 }

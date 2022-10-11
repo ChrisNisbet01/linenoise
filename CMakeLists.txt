@@ -14,7 +14,7 @@ OPTION(WITH_NATIVE_COMPLETION "Include native linenoise completion support" ON)
 
 configure_file(config.h.in ${PROJECT_BINARY_DIR}/config.h)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wmissing-prototypes -Werror")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wmissing-prototypes -Werror -Wno-unused-result")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
 if(WITH_DEBUG_SYMBOLS)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")

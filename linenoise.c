@@ -587,7 +587,8 @@ linenoiseAddCompletion(linenoiseCompletions * lc, char const * str)
 static bool
 refreshSingleLine(
     linenoise_st * const linenoise_ctx,
-    struct linenoiseState * const l)
+    struct linenoiseState * const l,
+    bool const row_clear_required)
 {
     bool success = true;
     char seq[64];
@@ -649,7 +650,8 @@ refreshSingleLine(
 static bool
 refreshMultiLine(
     linenoise_st * const linenoise_ctx,
-    struct linenoiseState * const l)
+    struct linenoiseState * const l,
+    bool const row_clear_required)
 {
     bool success = true;
     char seq[64];
@@ -668,25 +670,33 @@ refreshMultiLine(
         l->maxrows = rows;
     }
 
-    /* First step: clear all the lines used before. To do so start by
-     * going to the last row. */
     linenoise_buffer_init(&ab, 20);
-    if (old_rows - rpos > 0)
+    /*
+     * First step: clear all the lines used before.
+     * To do so start by going to the last row.
+     * This isn't necessary if there have been some completions printed just
+     * before this function is called, because the cursor will already be at
+     * the start of a line. In that case, row_clear_required will be false.
+     */
+    if (row_clear_required)
     {
-        lndebug("go down %d", old_rows - rpos);
-        linenoise_buffer_snprintf(&ab, seq, sizeof seq, "\x1b[%dB", old_rows - rpos);
-    }
+        if (old_rows - rpos > 0)
+        {
+            lndebug("go down %d", old_rows - rpos);
+            linenoise_buffer_snprintf(&ab, seq, sizeof seq, "\x1b[%dB", old_rows - rpos);
+        }
 
-    /* Now for every row clear it, go up. */
-    for (int j = 0; j < old_rows - 1; j++)
-    {
-        lndebug("clear+up");
-        linenoise_buffer_append(&ab, "\r\x1b[0K\x1b[1A", strlen("\r\x1b[0K\x1b[1A"));
-    }
+        /* Now for every row clear it, go up. */
+        for (int j = 0; j < old_rows - 1; j++)
+        {
+            lndebug("clear+up");
+            linenoise_buffer_append(&ab, "\r\x1b[0K\x1b[1A", strlen("\r\x1b[0K\x1b[1A"));
+        }
 
-    /* Clean the top line. */
-    lndebug("clear");
-    linenoise_buffer_append(&ab, "\r\x1b[0K", strlen("\r\x1b[0K"));
+        /* Clean the top line. */
+        lndebug("clear");
+        linenoise_buffer_append(&ab, "\r\x1b[0K", strlen("\r\x1b[0K"));
+    }
 
     /* Write the prompt and the current buffer content */
     linenoise_buffer_append(&ab, l->prompt, strlen(l->prompt));
@@ -761,21 +771,30 @@ refreshMultiLine(
  *      refreshMultiLine()
  * according to the selected mode. */
 bool
-refreshLine(
+refresh_line_check_row_clear(
     linenoise_st * const linenoise_ctx,
-    struct linenoiseState * const l)
+    struct linenoiseState * const l,
+    bool const row_clear_required)
 {
     bool success;
     if (linenoise_ctx->options.mlmode)
     {
-        success = refreshMultiLine(linenoise_ctx, l);
+        success = refreshMultiLine(linenoise_ctx, l, row_clear_required);
     }
     else
     {
-        success = refreshSingleLine(linenoise_ctx, l);
+        success = refreshSingleLine(linenoise_ctx, l, row_clear_required);
     }
 
     return success;
+}
+
+bool
+refreshLine(
+    linenoise_st * const linenoise_ctx,
+    struct linenoiseState * const l)
+{
+    return refresh_line_check_row_clear(linenoise_ctx, l, true);
 }
 
 /* Insert the character 'c' at cursor current position.
@@ -801,9 +820,10 @@ linenoiseEditInsert(
     {
         if (linenoise_ctx->options.mlmode)
         {
-            unsigned const old_rows = (l->prompt_len + l->len) / l->cols;
-            unsigned const new_rows = (l->prompt_len + l->len + 1) / l->cols;
-            if (old_rows == 0 && old_rows == new_rows)
+            size_t const old_rows = (l->prompt_len + l->len) / l->cols;
+            size_t const new_rows = (l->prompt_len + l->len + 1) / l->cols;
+
+            if (old_rows == new_rows)
             {
                 require_full_refresh = false;
             }
