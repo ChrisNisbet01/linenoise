@@ -806,7 +806,7 @@ linenoiseEditInsert(
     struct linenoiseState * const l,
     char const c)
 {
-    if (l->len > l->line_buf->capacity)
+    if (l->len >= l->line_buf->capacity)
     {
         if (!linenoise_buffer_grow(l->line_buf, l->len - l->line_buf->capacity))
         {
