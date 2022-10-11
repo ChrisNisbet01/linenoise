@@ -1,4 +1,5 @@
 #include "buffer.h"
+#include "export.h"
 
 #include <stdarg.h>
 #include <stddef.h>
@@ -8,6 +9,7 @@
 
 #define MIN_CAPACITY_INCREASE 256
 
+NO_EXPORT
 bool
 linenoise_buffer_grow(struct buffer * const ab, size_t const amount)
 {
@@ -27,6 +29,7 @@ linenoise_buffer_grow(struct buffer * const ab, size_t const amount)
     return true;
 }
 
+NO_EXPORT
 bool
 linenoise_buffer_init(struct buffer * const ab, size_t const initial_capacity)
 {
@@ -37,6 +40,7 @@ linenoise_buffer_init(struct buffer * const ab, size_t const initial_capacity)
     return linenoise_buffer_grow(ab, initial_capacity);
 }
 
+NO_EXPORT
 bool
 linenoise_buffer_append(
     struct buffer * const ab,
@@ -67,6 +71,7 @@ linenoise_buffer_append(
     return true;
 }
 
+NO_EXPORT
 void linenoise_buffer_free(struct buffer * const ab)
 {
     free(ab->b);
@@ -75,6 +80,7 @@ void linenoise_buffer_free(struct buffer * const ab)
     ab->capacity = 0;
 }
 
+NO_EXPORT
 int linenoise_buffer_snprintf(
     struct buffer * const ab,
     char * const buf,

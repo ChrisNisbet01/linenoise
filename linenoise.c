@@ -106,6 +106,7 @@
 #include "linenoise.h"
 #include "linenoise_private.h"
 #include "buffer.h"
+#include "export.h"
 #if WITH_HINTS
 #include "linenoise_hints.h"
 #endif
@@ -466,7 +467,7 @@ print_completions(
                 ls->len = ls->pos = temp_buf.len;
                 ls->line_buf = &temp_buf;
 
-                refreshLine(linenoise_ctx, ls);
+                refresh_line(linenoise_ctx, ls);
                 /* Restore the original line buffer. */
                 ls->len = saved.len;
                 ls->pos = saved.pos;
@@ -476,7 +477,7 @@ print_completions(
             }
             else
             {
-                refreshLine(linenoise_ctx, ls);
+                refresh_line(linenoise_ctx, ls);
             }
 
             nread = read(linenoise_ctx->in.fd, &c, 1);
@@ -499,7 +500,7 @@ print_completions(
                 /* Re-show original buffer */
                 if (i < lc->len)
                 {
-                    refreshLine(linenoise_ctx, ls);
+                    refresh_line(linenoise_ctx, ls);
                 }
                 stop = 1;
                 break;
@@ -770,6 +771,7 @@ refreshMultiLine(
  * or
  *      refreshMultiLine()
  * according to the selected mode. */
+NO_EXPORT
 bool
 refresh_line_check_row_clear(
     linenoise_st * const linenoise_ctx,
@@ -789,8 +791,9 @@ refresh_line_check_row_clear(
     return success;
 }
 
+NO_EXPORT
 bool
-refreshLine(
+refresh_line(
     linenoise_st * const linenoise_ctx,
     struct linenoiseState * const l)
 {
@@ -849,7 +852,7 @@ linenoiseEditInsert(
 
     if (require_full_refresh)
     {
-        refreshLine(linenoise_ctx, l);
+        refresh_line(linenoise_ctx, l);
     }
     else
     {
@@ -875,7 +878,7 @@ linenoiseEditMoveLeft(
     if (l->pos > 0)
     {
         l->pos--;
-        refreshLine(linenoise_ctx, l);
+        refresh_line(linenoise_ctx, l);
     }
 }
 
@@ -888,7 +891,7 @@ linenoiseEditMoveRight(
     if (l->pos != l->len)
     {
         l->pos++;
-        refreshLine(linenoise_ctx, l);
+        refresh_line(linenoise_ctx, l);
     }
 }
 
@@ -901,7 +904,7 @@ linenoiseEditMoveHome(
     if (l->pos != 0)
     {
         l->pos = 0;
-        refreshLine(linenoise_ctx, l);
+        refresh_line(linenoise_ctx, l);
     }
 }
 
@@ -914,7 +917,7 @@ linenoiseEditMoveEnd(
     if (l->pos != l->len)
     {
         l->pos = l->len;
-        refreshLine(linenoise_ctx, l);
+        refresh_line(linenoise_ctx, l);
     }
 }
 
@@ -957,7 +960,7 @@ linenoiseEditHistoryNext(
                                 linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index],
                                 strlen(linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index]));
         l->len = l->pos = l->line_buf->len;
-        refreshLine(linenoise_ctx, l);
+        refresh_line(linenoise_ctx, l);
     }
 }
 
@@ -973,7 +976,7 @@ linenoiseEditDelete(
         memmove(l->line_buf->b + l->pos, l->line_buf->b + l->pos + 1, l->len - l->pos - 1);
         l->len--;
         l->line_buf->b[l->len] = '\0';
-        refreshLine(linenoise_ctx, l);
+        refresh_line(linenoise_ctx, l);
     }
 }
 
@@ -991,7 +994,7 @@ linenoiseEditBackspace(
         l->pos--;
         l->len--;
         l->line_buf->b[l->len] = '\0';
-        refreshLine(linenoise_ctx, l);
+        refresh_line(linenoise_ctx, l);
     }
 }
 
@@ -1018,7 +1021,7 @@ linenoiseEditDeletePrevWord(
             l->line_buf->b + old_pos,
             l->len - old_pos + 1);
     l->len -= diff;
-    refreshLine(linenoise_ctx, l);
+    refresh_line(linenoise_ctx, l);
 }
 
 static void
@@ -1029,7 +1032,7 @@ delete_whole_line(
     l->line_buf->b[0] = '\0';
     l->pos = 0;
     l->len = 0;
-    refreshLine(linenoise_ctx, l);
+    refresh_line(linenoise_ctx, l);
 }
 
 static void
@@ -1054,7 +1057,7 @@ linenoise_edit_done(
          */
         linenoiseHintsCallback * const hc = linenoise_ctx->options.hintsCallback;
         linenoise_ctx->options.hintsCallback = NULL;
-        refreshLine(linenoise_ctx, l);
+        refresh_line(linenoise_ctx, l);
         linenoise_ctx->options.hintsCallback = hc;
     }
 #endif
@@ -1204,7 +1207,7 @@ static int linenoiseEdit(
                 {
                     l->pos++;
                 }
-                refreshLine(linenoise_ctx, l);
+                refresh_line(linenoise_ctx, l);
             }
             break;
 
@@ -1318,7 +1321,7 @@ static int linenoiseEdit(
         case CTRL_K: /* Ctrl+k, delete from current to end of line. */
             l->line_buf->b[l->pos] = '\0';
             l->len = l->pos;
-            refreshLine(linenoise_ctx, l);
+            refresh_line(linenoise_ctx, l);
             break;
 
         case CTRL_A: /* Ctrl+a, go to the start of the line */
@@ -1331,7 +1334,7 @@ static int linenoiseEdit(
 
         case CTRL_L: /* ctrl+l, clear screen */
             linenoiseClearScreen(linenoise_ctx);
-            refreshLine(linenoise_ctx, l);
+            refresh_line(linenoise_ctx, l);
             break;
 
         case CTRL_W: /* ctrl+w, delete previous word */
