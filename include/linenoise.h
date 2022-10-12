@@ -102,6 +102,9 @@ linenoise_insert_text_len(
 bool
 linenoise_insert_text(linenoise_st * linenoise_ctx, char const * text);
 
+int
+linenoise_terminal_width(linenoise_st * linenoise_ctx);
+
 bool linenoise_complete(
     linenoise_st * linenoise_ctx,
     unsigned start,
@@ -113,10 +116,12 @@ linenoise_display_matches(
     linenoise_st * linenoise_ctx,
     char * * matches);
 
+bool
+linenoise_refresh_line(linenoise_st * linenoise_ctx);
+
 typedef enum linenoise_key_binding_flags_t
 {
-	key_binding_refresh = 0x01,
-	key_binding_done = 0x02
+	key_binding_done = 0x01
 } linenoise_key_binding_flags_t;
 
 typedef bool (*key_binding_handler_cb)(

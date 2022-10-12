@@ -400,6 +400,12 @@ done:
     return cols;
 }
 
+int
+linenoise_terminal_width(linenoise_st * const linenoise_ctx)
+{
+    return linenoise_get_terminal_width(linenoise_ctx->in.fd, linenoise_ctx->out.fd);
+}
+
 /* Clear the screen. Used to handle ctrl+l */
 void
 linenoise_clear_screen(linenoise_st * const linenoise_ctx)
@@ -810,6 +816,12 @@ refresh_line(
     return refresh_line_check_row_clear(linenoise_ctx, l, true);
 }
 
+bool
+linenoise_refresh_line(linenoise_st *linenoise_ctx)
+{
+	return refresh_line(linenoise_ctx, &linenoise_ctx->state);
+}
+
 /* Insert the character 'c' at cursor current position.
  *
  * On error writing to the terminal -1 is returned, otherwise 0. */
@@ -1159,10 +1171,6 @@ static int linenoise_edit(
 	    if ((flags & key_binding_done) != 0)
 	    {
 		    break;
-	    }
-	    if ((flags & key_binding_refresh) != 0)
-	    {
-			refresh_line(linenoise_ctx, l);
 	    }
             continue;
         }
