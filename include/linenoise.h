@@ -113,8 +113,15 @@ linenoise_display_matches(
     linenoise_st * linenoise_ctx,
     char * * matches);
 
+typedef enum linenoise_key_binding_flags_t
+{
+	key_binding_refresh = 0x01,
+	key_binding_done = 0x02
+} linenoise_key_binding_flags_t;
+
 typedef bool (*key_binding_handler_cb)(
-    linenoise_st * linenoise_ctx,
+	linenoise_st *linenoise_ctx,
+	uint32_t * flags,
     char const * key,
     void * user_ctx);
 

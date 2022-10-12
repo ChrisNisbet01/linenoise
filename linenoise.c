@@ -1146,17 +1146,24 @@ static int linenoise_edit(
         {
             size_t const index = (unsigned)c;
 	    char key_str[2] = {c, '\0'};
-
+	    uint32_t flags = 0;
             bool const res = linenoise_ctx->key_bindings[index].handler(
                 linenoise_ctx,
+		&flags,
                 key_str,
                 linenoise_ctx->key_bindings[index].user_ctx);
-            (void)res;
-            /*
-             * TODO:
-             * - Allow caller to indicate that the line needs to be refreshed
-             * - Allow caller to indicate that readline is complete.
-             */
+	    if (!res)
+	    {
+		    return -1;
+	    }
+	    if ((flags & key_binding_done) != 0)
+	    {
+		    break;
+	    }
+	    if ((flags & key_binding_refresh) != 0)
+	    {
+			refresh_line(linenoise_ctx, l);
+	    }
             continue;
         }
 #endif
