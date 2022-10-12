@@ -116,6 +116,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <sys/stat.h>
@@ -179,6 +180,20 @@ size_t
 linenoise_point_get(linenoise_st * const linenoise_ctx)
 {
     return linenoise_ctx->state.pos;
+}
+
+size_t
+linenoise_end_get(linenoise_st * const linenoise_ctx)
+{
+    return linenoise_ctx->state.len;
+}
+
+void
+linenoise_point_set(
+    linenoise_st * const linenoise_ctx,
+    unsigned const new_point)
+{
+    linenoise_ctx->state.pos = new_point;
 }
 
 /* ======================= Low level terminal handling ====================== */
@@ -1130,12 +1145,18 @@ static int linenoise_edit(
         if (linenoise_ctx->key_bindings[(unsigned)c].handler != NULL)
         {
             size_t const index = (unsigned)c;
+	    char key_str[2] = {c, '\0'};
 
             bool const res = linenoise_ctx->key_bindings[index].handler(
                 linenoise_ctx,
-                c,
+                key_str,
                 linenoise_ctx->key_bindings[index].user_ctx);
             (void)res;
+            /*
+             * TODO:
+             * - Allow caller to indicate that the line needs to be refreshed
+             * - Allow caller to indicate that readline is complete.
+             */
             continue;
         }
 #endif
@@ -1765,5 +1786,21 @@ linenoise_delete(linenoise_st * const linenoise_ctx)
 
 done:
     return;
+}
+
+int
+linenoise_printf(
+    linenoise_st * const linenoise_ctx,
+    char const * const fmt,
+    ...)
+{
+    va_list args;
+    int len;
+
+    va_start(args, fmt);
+    len = vfprintf(linenoise_ctx->out.stream, fmt, args);
+    va_end(args);
+
+    return len;
 }
 

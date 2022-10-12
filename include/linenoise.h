@@ -79,6 +79,14 @@ linenoise_line_get(linenoise_st * linenoise_ctx);
 size_t
 linenoise_point_get(linenoise_st * linenoise_ctx);
 
+size_t
+linenoise_end_get(linenoise_st * linenoise_ctx);
+
+void
+linenoise_point_set(
+    linenoise_st * linenoise_ctx,
+    unsigned new_point);
+
 void
 linenoise_delete_text(
     linenoise_st * linenoise_ctx,
@@ -100,10 +108,14 @@ bool linenoise_complete(
     char * * matches,
     bool allow_prefix);
 
+void
+linenoise_display_matches(
+    linenoise_st * linenoise_ctx,
+    char * * matches);
 
 typedef bool (*key_binding_handler_cb)(
     linenoise_st * linenoise_ctx,
-    char key,
+    char const * key,
     void * user_ctx);
 
 void
@@ -151,6 +163,12 @@ linenoise_new(FILE * in_stream, FILE * out_stream);
 
 void
 linenoise_delete(linenoise_st * linenoise);
+
+int
+linenoise_printf(
+    linenoise_st * const linenoise_ctx,
+    char const * const fmt,
+    ...);
 
 #ifdef __cplusplus
 }

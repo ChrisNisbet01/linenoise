@@ -72,8 +72,8 @@ linenoise_insert_text(
     return linenoise_insert_text_len(linenoise_ctx, text, strlen(text));
 }
 
-static void
-display_matches(
+void
+linenoise_display_matches(
     linenoise_st * const linenoise_ctx,
     char * * const matches)
 {
@@ -191,7 +191,7 @@ linenoise_complete(
     /* display matches if no progress was made */
     if (!did_some_completion)
     {
-        display_matches(linenoise_ctx, matches);
+        linenoise_display_matches(linenoise_ctx, matches);
         refresh_line_check_row_clear(linenoise_ctx, &linenoise_ctx->state, false);
     }
 
