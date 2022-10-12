@@ -26,7 +26,7 @@ linenoise_delete_text(
     {
         return;
     }
-    struct linenoiseState * const ls = &linenoise_ctx->state;
+    struct linenoise_state * const ls = &linenoise_ctx->state;
 
     /* move any text which is left, including terminator */
     unsigned const delta = end - start;
@@ -58,7 +58,7 @@ linenoise_insert_text_len(
 {
     for (size_t i = 0; i < count; i++)
     {
-        linenoiseEditInsert(linenoise_ctx, &linenoise_ctx->state, text[i]);
+        linenoise_edit_insert(linenoise_ctx, &linenoise_ctx->state, text[i]);
     }
 
     return true;

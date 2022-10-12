@@ -9,13 +9,13 @@ void
 linenoise_hints_refreshShowHints(
     linenoise_st const * const linenoise_ctx,
     struct buffer * const ab,
-    struct linenoiseState const * const l,
+    struct linenoise_state const * const l,
     int const prompt_len)
 {
-    if (linenoise_ctx->options.hintsCallback && prompt_len + l->len < l->cols)
+    if (linenoise_ctx->options.hints_callback && prompt_len + l->len < l->cols)
     {
         int color = -1, bold = 0;
-        char * hint = linenoise_ctx->options.hintsCallback(l->line_buf->b, &color, &bold);
+        char * hint = linenoise_ctx->options.hints_callback(l->line_buf->b, &color, &bold);
 
         if (hint != NULL)
         {
@@ -41,32 +41,32 @@ linenoise_hints_refreshShowHints(
                 linenoise_buffer_append(ab, "\033[0m", strlen("\033[0m"));
             }
             /* Call the function to free the hint returned. */
-            if (linenoise_ctx->options.freeHintsCallback)
+            if (linenoise_ctx->options.free_hints_callback)
             {
-                linenoise_ctx->options.freeHintsCallback(hint);
+                linenoise_ctx->options.free_hints_callback(hint);
             }
         }
     }
 }
 
-/* Register a hits function to be called to show hits to the user at the
- * right of the prompt. */
+/* Register a hits function to be called to show hints to the user at the
+ * right of the cursor. */
 void
-linenoiseSetHintsCallback(
+linenoise_set_hints_callback(
     linenoise_st * const linenoise_ctx,
-    linenoiseHintsCallback * const fn)
+    linenoise_hints_callback * const fn)
 {
-    linenoise_ctx->options.hintsCallback = fn;
+    linenoise_ctx->options.hints_callback = fn;
 }
 
 /* Register a function to free the hints returned by the hints callback
- * registered with linenoiseSetHintsCallback(). */
+ * registered with linenoise_set_hints_callback(). */
 void
-linenoiseSetFreeHintsCallback(
+linenoise_set_free_hints_callback(
     linenoise_st * const linenoise_ctx,
-    linenoiseFreeHintsCallback * const fn)
+    linenoise_free_hints_callback * const fn)
 {
-    linenoise_ctx->options.freeHintsCallback = fn;
+    linenoise_ctx->options.free_hints_callback = fn;
 }
 
 #endif

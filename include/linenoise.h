@@ -49,24 +49,24 @@ extern "C" {
 
 typedef struct linenoise_st linenoise_st;
 
-typedef struct linenoiseCompletions linenoiseCompletions;
+typedef struct linenoise_completions linenoise_completions;
 
-typedef void(linenoiseCompletionCallback)(const char *, linenoiseCompletions *);
+typedef void(linenoise_completion_callback)(const char *, linenoise_completions *);
 
-typedef char*(linenoiseHintsCallback)(const char *, int *color, int *bold);
+typedef char*(linenoise_hints_callback)(const char *, int *color, int *bold);
 
-typedef void(linenoiseFreeHintsCallback)(void *);
-
-void
-linenoiseSetCompletionCallback(linenoise_st * linenoise_ctx, linenoiseCompletionCallback * cb);
+typedef void(linenoise_free_hints_callback)(void *);
 
 void
-linenoiseSetHintsCallback(linenoise_st * linenoise_ctx, linenoiseHintsCallback * cb);
+linenoise_set_completion_callback(linenoise_st * linenoise_ctx, linenoise_completion_callback * cb);
 
 void
-linenoiseSetFreeHintsCallback(linenoise_st * linenoise_ctx, linenoiseFreeHintsCallback * cb);
+linenoise_set_hints_callback(linenoise_st * linenoise_ctx, linenoise_hints_callback * cb);
 
-void linenoiseAddCompletion(linenoiseCompletions * completions, char const * completion);
+void
+linenoise_set_free_hints_callback(linenoise_st * linenoise_ctx, linenoise_free_hints_callback * cb);
+
+void linenoise_add_completion(linenoise_completions * completions, char const * completion);
 
 /*
  * Get the current pointer to the line buffer. Note that any changes made by
@@ -117,37 +117,34 @@ char *
 linenoise(linenoise_st * linenoise_ctx, char const * prompt);
 
 void
-linenoiseFree(void *ptr);
+linenoise_free(void *ptr);
 
 int
-linenoiseHistoryAdd(linenoise_st * linenoise_ctx, char const * line);
+linenoise_history_add(linenoise_st * linenoise_ctx, char const * line);
 
 int
-linenoiseHistorySetMaxLen(linenoise_st * linenoise_ctx, int len);
+linenoise_history_set_max_len(linenoise_st * linenoise_ctx, int len);
 
 int
-linenoiseHistorySave(linenoise_st * linenoise_ctx, char const * filename);
+linenoise_history_save(linenoise_st * linenoise_ctx, char const * filename);
 
 int
-linenoiseHistoryLoad(linenoise_st * linenoise_ctx, char const * filename);
+linenoise_history_load(linenoise_st * linenoise_ctx, char const * filename);
 
 void
-linenoiseClearScreen(linenoise_st * linenoise_ctx);
+linenoise_clear_screen(linenoise_st * linenoise_ctx);
 
 void
-linenoiseSetMultiLine(linenoise_st * linenoise_ctx, bool ml);
+linenoise_set_multi_line(linenoise_st * linenoise_ctx, bool ml);
 
 void
-linenoisePrintKeyCodes(linenoise_st * linenoise_ctx);
+linenoise_print_key_codes(linenoise_st * linenoise_ctx);
 
 void
-linenoiseMaskModeEnable(linenoise_st * linenoise_ctx);
+linenoise_set_mask_mode(linenoise_st * linenoise_ctx, bool enable);
 
 void
-linenoiseMaskModeDisable(linenoise_st * linenoise_ctx);
-
-void
-linenoiseBeepControl(linenoise_st * linenoise_ctx, bool enable);
+linenoise_beep_control(linenoise_st * linenoise_ctx, bool enable);
 
 struct linenoise_st *
 linenoise_new(FILE * in_stream, FILE * out_stream);
