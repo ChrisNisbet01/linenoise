@@ -296,7 +296,8 @@ get_cursor_position(int const ifd, int const ofd)
     }
 
     /* Read the response: ESC [ rows ; cols R */
-    for (size_t i = 0; i < sizeof(buf) - 1; i++)
+    size_t i;
+    for (i = 0; i < sizeof(buf) - 1; i++)
     {
         if (read(ifd, buf + i, 1) != 1)
         {
