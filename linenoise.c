@@ -893,45 +893,6 @@ done:
     return 0;
 }
 
-/* Move cursor on the left. */
-static void
-linenoise_edit_move_left(
-    linenoise_st * const linenoise_ctx,
-    struct linenoise_state * const l)
-{
-    if (l->pos > 0)
-    {
-        l->pos--;
-        refresh_line(linenoise_ctx, l);
-    }
-}
-
-/* Move cursor on the right. */
-static void
-linenoise_edit_move_right(
-    linenoise_st * const linenoise_ctx,
-    struct linenoise_state * const l)
-{
-    if (l->pos != l->len)
-    {
-        l->pos++;
-        refresh_line(linenoise_ctx, l);
-    }
-}
-
-/* Move cursor to the start of the line. */
-static void
-linenoise_edit_move_home(
-    linenoise_st * const linenoise_ctx,
-    struct linenoise_state * const l)
-{
-    if (l->pos != 0)
-    {
-        l->pos = 0;
-        refresh_line(linenoise_ctx, l);
-    }
-}
-
 /* Move cursor to the end of the line. */
 static void
 linenoise_edit_move_end(
@@ -953,7 +914,7 @@ enum linenoise_history_direction
     LINENOISE_HISTORY_PREV = 1
 };
 
-static void
+static bool
 linenoise_edit_history_next(
     linenoise_st * const linenoise_ctx,
     struct linenoise_state * const l,
@@ -970,12 +931,12 @@ linenoise_edit_history_next(
         if (l->history_index < 0)
         {
             l->history_index = 0;
-            return;
+            return false;
         }
         else if (l->history_index >= linenoise_ctx->history.current_len)
         {
             l->history_index = linenoise_ctx->history.current_len - 1;
-            return;
+            return false;
         }
         linenoise_buffer_free(l->line_buf);
         linenoise_buffer_init(l->line_buf,
@@ -984,8 +945,9 @@ linenoise_edit_history_next(
                                 linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index],
                                 strlen(linenoise_ctx->history.history[linenoise_ctx->history.current_len - 1 - l->history_index]));
         l->len = l->pos = l->line_buf->len;
-        refresh_line(linenoise_ctx, l);
+        return true;
     }
+    return false;
 }
 
 /* Delete the character at the right of the cursor without altering the cursor
@@ -998,24 +960,6 @@ linenoise_edit_delete(
     if (l->len > 0 && l->pos < l->len)
     {
         memmove(l->line_buf->b + l->pos, l->line_buf->b + l->pos + 1, l->len - l->pos - 1);
-        l->len--;
-        l->line_buf->b[l->len] = '\0';
-        refresh_line(linenoise_ctx, l);
-    }
-}
-
-/* Backspace implementation. */
-static void
-linenoise_edit_backspace(
-    linenoise_st * const linenoise_ctx,
-    struct linenoise_state * const l)
-{
-    if (l->pos > 0 && l->len > 0)
-    {
-        memmove(l->line_buf->b + l->pos - 1,
-                l->line_buf->b + l->pos,
-                l->len - l->pos);
-        l->pos--;
         l->len--;
         l->line_buf->b[l->len] = '\0';
         refresh_line(linenoise_ctx, l);
@@ -1045,7 +989,6 @@ linenoise_edit_delete_prev_word(
             l->line_buf->b + old_pos,
             l->len - old_pos + 1);
     l->len -= diff;
-    refresh_line(linenoise_ctx, l);
 }
 
 static void
@@ -1056,7 +999,6 @@ delete_whole_line(
     l->line_buf->b[0] = '\0';
     l->pos = 0;
     l->len = 0;
-    refresh_line(linenoise_ctx, l);
 }
 
 static void
@@ -1086,16 +1028,6 @@ linenoise_edit_done(
     }
 #endif
 
-}
-
-static int
-ctrl_c_handler_default(
-    linenoise_st * const linenoise_ctx,
-    struct linenoise_state * const l)
-{
-    delete_whole_line(linenoise_ctx, l);
-    linenoise_edit_done(linenoise_ctx, l);
-    return (int)l->len;
 }
 
 static int
@@ -1139,7 +1071,10 @@ up_handler(
 {
     struct linenoise_state * const l = &linenoise_ctx->state;
 
-    linenoise_edit_history_next(linenoise_ctx, l, LINENOISE_HISTORY_PREV);
+    if (linenoise_edit_history_next(linenoise_ctx, l, LINENOISE_HISTORY_PREV))
+    {
+        *flags |= key_binding_refresh;
+    }
 
     return true;
 }
@@ -1153,7 +1088,10 @@ down_handler(
 {
     struct linenoise_state * const l = &linenoise_ctx->state;
 
-    linenoise_edit_history_next(linenoise_ctx, l, LINENOISE_HISTORY_NEXT);
+    if (linenoise_edit_history_next(linenoise_ctx, l, LINENOISE_HISTORY_NEXT))
+    {
+        *flags |= key_binding_refresh;
+    }
 
     return true;
 }
@@ -1167,7 +1105,11 @@ right_handler(
 {
     struct linenoise_state * const l = &linenoise_ctx->state;
 
-    linenoise_edit_move_right(linenoise_ctx, l);
+    if (l->pos != l->len)
+    {
+        l->pos++;
+        *flags |= key_binding_refresh;
+    }
 
     return true;
 }
@@ -1181,7 +1123,11 @@ left_handler(
 {
     struct linenoise_state * const l = &linenoise_ctx->state;
 
-    linenoise_edit_move_left(linenoise_ctx, l);
+    if (l->pos > 0)
+    {
+        l->pos--;
+        *flags |= key_binding_refresh;
+    }
 
     return true;
 }
@@ -1195,7 +1141,11 @@ home_handler(
 {
     struct linenoise_state * const l = &linenoise_ctx->state;
 
-    linenoise_edit_move_home(linenoise_ctx, l);
+    if (l->pos != 0)
+    {
+        l->pos = 0;
+        *flags |= key_binding_refresh;
+    }
 
     return true;
 }
@@ -1209,11 +1159,190 @@ end_handler(
 {
     struct linenoise_state * const l = &linenoise_ctx->state;
 
-    linenoise_edit_move_end(linenoise_ctx, l);
+    if (l->pos != l->len)
+    {
+        l->pos = l->len;
+        *flags |= key_binding_refresh;
+    }
 
     return true;
 }
 
+static bool
+default_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    if (linenoise_edit_insert(linenoise_ctx, l, *key) != 0)
+    {
+        *flags |= key_binding_error;
+    }
+    return true;
+}
+
+
+static bool
+enter_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    *flags |= key_binding_done;
+    return true;
+}
+
+static bool
+ctrl_c_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    delete_whole_line(linenoise_ctx, l);
+    *flags |= key_binding_done;
+
+    return true;
+}
+
+static bool
+backspace_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    if (l->pos > 0 && l->len > 0)
+    {
+        memmove(l->line_buf->b + l->pos - 1,
+                l->line_buf->b + l->pos,
+                l->len - l->pos);
+        l->pos--;
+        l->len--;
+        l->line_buf->b[l->len] = '\0';
+        *flags |= key_binding_refresh;
+    }
+
+    return true;
+}
+
+static bool
+ctrl_d_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+    bool result;
+
+    if (l->len > 0)
+    {
+        result = delete_handler(linenoise_ctx, flags, key, user_ctx);
+    }
+    else
+    {
+        linenoise_ctx->history.current_len--;
+        free(linenoise_ctx->history.history[linenoise_ctx->history.current_len]);
+        linenoise_ctx->history.history[linenoise_ctx->history.current_len] = NULL;
+        *flags |= key_binding_error;
+        result = true;
+    }
+
+    return result;
+}
+
+static bool
+ctrl_t_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    if (l->pos > 0 && l->pos < l->len)
+    {
+        int const aux = l->line_buf->b[l->pos - 1];
+
+        l->line_buf->b[l->pos - 1] = l->line_buf->b[l->pos];
+        l->line_buf->b[l->pos] = aux;
+        if (l->pos != l->len - 1)
+        {
+            l->pos++;
+        }
+        *flags |= key_binding_refresh;
+    }
+
+    return true;
+}
+
+static bool
+ctrl_u_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    delete_whole_line(linenoise_ctx, l);
+    *flags |= key_binding_refresh;
+
+    return true;
+}
+
+static bool
+ctrl_k_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    l->line_buf->b[l->pos] = '\0';
+    l->len = l->pos;
+    *flags |= key_binding_refresh;
+
+    return true;
+}
+
+static bool
+ctrl_l_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    linenoise_clear_screen(linenoise_ctx);
+    *flags |= key_binding_refresh;
+
+    return true;
+}
+
+static bool
+ctrl_w_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    linenoise_edit_delete_prev_word(linenoise_ctx, l);
+    *flags |= key_binding_refresh;
+
+    return true;
+}
 
 /* This function is the core of the line editing capability of linenoise.
  * It expects 'fd' to be already in "raw mode" so that every key pressed
@@ -1269,9 +1398,7 @@ static int linenoise_edit(
             return l->len;
         }
 
-
-#if WITH_KEY_BINDING
-{
+        {
             struct linenoise_keymap * keymap = linenoise_ctx->keymap;
             key_binding_handler_cb handler = NULL;
             void * context = NULL;
@@ -1313,6 +1440,14 @@ static int linenoise_edit(
 
                 (void)res;
 
+                if ((flags & key_binding_error) != 0)
+                {
+                    return -1;
+                }
+                if ((flags & key_binding_refresh) != 0)
+                {
+                    refresh_line(linenoise_ctx, l);
+                }
                 if ((flags & key_binding_done) != 0)
                 {
                     linenoise_edit_done(linenoise_ctx, l);
@@ -1320,128 +1455,6 @@ static int linenoise_edit(
                 }
                 continue;
             }
-}
-#endif
-
-#if WITH_NATIVE_COMPLETION
-        /* Only autocomplete when the callback is set. It returns < 0 when
-         * there was an error reading from fd. Otherwise it will return the
-         * character that should be handled next. */
-        if (c == TAB && linenoise_ctx->options.completion_callback != NULL)
-        {
-            c = complete_line(linenoise_ctx, l);
-            /* Return on errors */
-            if (c < 0)
-            {
-                return l->len;
-            }
-            /* Read next character when 0 */
-            if (c == 0)
-            {
-                continue;
-            }
-        }
-#endif
-
-        switch (c)
-        {
-        case ENTER:    /* enter */
-            linenoise_edit_done(linenoise_ctx, l);
-            return (int)l->len;
-
-        case CTRL_C:     /* ctrl-c */
-            return ctrl_c_handler_default(linenoise_ctx, l);
-
-        case BACKSPACE:   /* backspace */
-            /* Drop through. */
-        case CTRL_H:     /* ctrl-h */
-            linenoise_edit_backspace(linenoise_ctx, l);
-            break;
-
-        case CTRL_D:     /* ctrl-d, remove char at right of cursor, or if the
-                            line is empty, act as end-of-file. */
-            if (l->len > 0)
-            {
-                linenoise_edit_delete(linenoise_ctx, l);
-            }
-            else
-            {
-                linenoise_ctx->history.current_len--;
-                free(linenoise_ctx->history.history[linenoise_ctx->history.current_len]);
-                linenoise_ctx->history.history[linenoise_ctx->history.current_len] = NULL;
-
-                return -1;
-            }
-            break;
-
-        case CTRL_T:    /* ctrl-t, swaps current character with previous. */
-            if (l->pos > 0 && l->pos < l->len)
-            {
-                int const aux = l->line_buf->b[l->pos - 1];
-
-                l->line_buf->b[l->pos - 1] = l->line_buf->b[l->pos];
-                l->line_buf->b[l->pos] = aux;
-                if (l->pos != l->len - 1)
-                {
-                    l->pos++;
-                }
-                refresh_line(linenoise_ctx, l);
-            }
-            break;
-
-        case CTRL_B:     /* ctrl-b */
-            linenoise_edit_move_left(linenoise_ctx, l);
-            break;
-
-        case CTRL_F:     /* ctrl-f */
-            linenoise_edit_move_right(linenoise_ctx, l);
-            break;
-
-        case CTRL_P:    /* ctrl-p */
-            linenoise_edit_history_next(linenoise_ctx, l, LINENOISE_HISTORY_PREV);
-            break;
-
-        case CTRL_N:    /* ctrl-n */
-            linenoise_edit_history_next(linenoise_ctx, l, LINENOISE_HISTORY_NEXT);
-            break;
-
-        case CTRL_U: /* Ctrl+u, delete the whole line. */
-            delete_whole_line(linenoise_ctx, l);
-            break;
-
-        case CTRL_K: /* Ctrl+k, delete from current to end of line. */
-            l->line_buf->b[l->pos] = '\0';
-            l->len = l->pos;
-            refresh_line(linenoise_ctx, l);
-            break;
-
-        case CTRL_A: /* Ctrl+a, go to the start of the line */
-            linenoise_edit_move_home(linenoise_ctx, l);
-            break;
-
-        case CTRL_E: /* ctrl+e, go to the end of the line */
-            linenoise_edit_move_end(linenoise_ctx, l);
-            break;
-
-        case CTRL_L: /* ctrl+l, clear screen */
-            linenoise_clear_screen(linenoise_ctx);
-            refresh_line(linenoise_ctx, l);
-            break;
-
-        case CTRL_W: /* ctrl+w, delete previous word */
-            linenoise_edit_delete_prev_word(linenoise_ctx, l);
-            break;
-
-        case ESC:    /* escape sequence */
-            break;
-
-        default:
-            if (linenoise_edit_insert(linenoise_ctx, l, c) != 0)
-            {
-                return -1;
-            }
-            break;
-
         }
     }
     return l->len;
@@ -1843,6 +1856,30 @@ linenoise_new(FILE * const in_stream, FILE * const out_stream)
     }
 
     linenoise_ctx->keymap = linenoise_keymap_new();
+
+    for (size_t i = 32; i < 256; i++)
+    {
+        linenoise_bind_key(linenoise_ctx, i, default_handler, NULL);
+    }
+
+    linenoise_bind_key(linenoise_ctx, ENTER, enter_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_C, ctrl_c_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, BACKSPACE, backspace_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_H, backspace_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_D, ctrl_d_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_T, ctrl_t_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_B, left_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_F, right_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_P, up_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_N, down_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_U, ctrl_u_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_K, ctrl_k_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_A, home_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_E, end_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_L, ctrl_l_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL_W, ctrl_w_handler, NULL);
+
+
 #define ESCAPESTR "\x1b"
 
     linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[3~", delete_handler, NULL);

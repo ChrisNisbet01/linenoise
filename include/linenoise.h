@@ -121,7 +121,9 @@ linenoise_refresh_line(linenoise_st * linenoise_ctx);
 
 typedef enum linenoise_key_binding_flags_t
 {
-	key_binding_done = 0x01
+	key_binding_done = 0x01,
+    key_binding_refresh = 0x02,
+    key_binding_error = 0x04
 } linenoise_key_binding_flags_t;
 
 typedef bool (*key_binding_handler_cb)(
