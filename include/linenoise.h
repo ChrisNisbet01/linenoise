@@ -159,9 +159,6 @@ void
 linenoise_clear_screen(linenoise_st * linenoise_ctx);
 
 void
-linenoise_set_multi_line(linenoise_st * linenoise_ctx, bool ml);
-
-void
 linenoise_print_key_codes(linenoise_st * linenoise_ctx);
 
 void

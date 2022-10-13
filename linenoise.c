@@ -208,13 +208,6 @@ linenoise_set_mask_mode(
     linenoise_ctx->options.mask_mode = enable;
 }
 
-/* Set if to use or not the multi line mode. */
-void
-linenoise_set_multi_line(linenoise_st * const linenoise_ctx, bool const ml)
-{
-    linenoise_ctx->options.multiline_mode = ml;
-}
-
 /* Return true if the terminal name is in the list of terminals we know are
  * not able to understand basic escape sequences. */
 static int
@@ -415,70 +408,12 @@ linenoise_clear_screen(linenoise_st * const linenoise_ctx)
     }
 }
 
-/* Single line low level line refresh.
- *
- * Rewrite the currently edited line accordingly to the buffer content,
- * cursor position, and number of columns of the terminal. */
-static bool
-refresh_single_line(
-    linenoise_st * const linenoise_ctx,
-    struct linenoise_state * const l,
-    bool const row_clear_required)
-{
-    bool success = true;
-    char seq[64];
-    size_t plen = strlen(l->prompt);
-    int const fd = linenoise_ctx->out.fd;
-    char * buf = l->line_buf->b;
-    size_t len = l->len;
-    size_t pos = l->pos;
-    struct buffer ab;
-
-    while ((plen + pos) >= l->cols)
-    {
-        buf++;
-        len--;
-        pos--;
-    }
-    while (plen + len > l->cols)
-    {
-        len--;
-    }
-
-    linenoise_buffer_init(&ab, 20);
-    /* Cursor to left edge */
-    linenoise_buffer_append(&ab, "\r", strlen("\r"));
-    /* Write the prompt and the current buffer content */
-    linenoise_buffer_append(&ab, l->prompt, strlen(l->prompt));
-    if (linenoise_ctx->options.mask_mode)
-    {
-        while (len--)
-        {
-            linenoise_buffer_append(&ab, "*", 1);
-        }
-    }
-    else
-    {
-        linenoise_buffer_append(&ab, buf, len);
-    }
-    /* Erase to right */
-    linenoise_buffer_append(&ab, "\x1b[0K", strlen("\x1b[0K"));
-    /* Move cursor to original position. */
-    linenoise_buffer_snprintf(&ab, seq, sizeof seq, "\r\x1b[%dC",(int)(pos + plen));
-    if (write(fd, ab.b, ab.len) == -1)
-    {
-        success = false;
-    } /* Can't recover from write error. */
-    linenoise_buffer_free(&ab);
-
-    return success;
-}
-
+NO_EXPORT
 /* Multi line low level line refresh.
  *
  * Rewrite the currently edited line accordingly to the buffer content,
  * cursor position, and number of columns of the terminal. */
-static bool
+bool
 refresh_multi_line(
     linenoise_st * const linenoise_ctx,
     struct linenoise_state * const l,
@@ -591,38 +526,13 @@ refresh_multi_line(
     return success;
 }
 
-/* Calls one of the two low level functions
- *      refreshSingleLine()
- * or
- *      refreshMultiLine()
- * according to the selected mode. */
-NO_EXPORT
-bool
-refresh_line_check_row_clear(
-    linenoise_st * const linenoise_ctx,
-    struct linenoise_state * const l,
-    bool const row_clear_required)
-{
-    bool success;
-    if (linenoise_ctx->options.multiline_mode)
-    {
-        success = refresh_multi_line(linenoise_ctx, l, row_clear_required);
-    }
-    else
-    {
-        success = refresh_single_line(linenoise_ctx, l, row_clear_required);
-    }
-
-    return success;
-}
-
 NO_EXPORT
 bool
 refresh_line(
     linenoise_st * const linenoise_ctx,
     struct linenoise_state * const l)
 {
-    return refresh_line_check_row_clear(linenoise_ctx, l, true);
+    return refresh_multi_line(linenoise_ctx, l, true);
 }
 
 bool
@@ -654,22 +564,12 @@ linenoise_edit_insert(
 
     if (l->len == l->pos) /* Cursor is at the end of the line. */
     {
-        if (linenoise_ctx->options.multiline_mode)
-        {
-            size_t const old_rows = (l->prompt_len + l->len) / l->cols;
-            size_t const new_rows = (l->prompt_len + l->len + 1) / l->cols;
+        size_t const old_rows = (l->prompt_len + l->len) / l->cols;
+        size_t const new_rows = (l->prompt_len + l->len + 1) / l->cols;
 
-            if (old_rows == new_rows)
-            {
-                require_full_refresh = false;
-            }
-        }
-        else
+        if (old_rows == new_rows)
         {
-            if ((l->prompt_len + l->len + 1) < l->cols)
-            {
-                require_full_refresh = false;
-            }
+            require_full_refresh = false;
         }
     }
 
@@ -822,12 +722,9 @@ linenoise_edit_done(
     linenoise_ctx->history.current_len--;
     free(linenoise_ctx->history.history[linenoise_ctx->history.current_len]);
     linenoise_ctx->history.history[linenoise_ctx->history.current_len] = NULL;
-    if (linenoise_ctx->options.multiline_mode)
+    if (linenoise_edit_move_end(linenoise_ctx, l))
     {
-        if (linenoise_edit_move_end(linenoise_ctx, l))
-        {
-            refresh_line(linenoise_ctx, l);
-        }
+        refresh_line(linenoise_ctx, l);
     }
 }
 

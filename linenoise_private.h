@@ -71,7 +71,6 @@ struct linenoise_st
     struct
     {
         bool mask_mode;
-        bool multiline_mode;
     } options;
 
     struct
@@ -87,6 +86,12 @@ linenoise_get_terminal_width(int ifd, int ofd);
 
 bool
 refresh_line(linenoise_st * linenoise_ctx, struct linenoise_state * l);
+
+bool
+refresh_multi_line(
+    linenoise_st * linenoise_ctx,
+    struct linenoise_state * l,
+    bool row_clear_required);
 
 bool
 refresh_line_check_row_clear(
