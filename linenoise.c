@@ -1262,7 +1262,6 @@ static int linenoise_edit(
     {
         char c;
         int nread;
-        char seq[3];
 
         nread = read(linenoise_ctx->in.fd, &c, 1);
         if (nread <= 0)
@@ -1406,93 +1405,6 @@ static int linenoise_edit(
             linenoise_edit_history_next(linenoise_ctx, l, LINENOISE_HISTORY_NEXT);
             break;
 
-        case ESC:    /* escape sequence */
-            /* Read the next two bytes representing the escape sequence.
-             * Use two calls to handle slow terminals returning the two
-             * chars at different times. */
-            if (read(linenoise_ctx->in.fd, seq, 1) == -1)
-            {
-                break;
-            }
-            if (read(linenoise_ctx->in.fd, seq + 1, 1) == -1)
-            {
-                break;
-            }
-
-            /* ESC [ sequences. */
-            if (seq[0] == '[')
-            {
-                if (seq[1] >= '0' && seq[1] <= '9')
-                {
-                    /* Extended escape, read additional byte. */
-                    if (read(linenoise_ctx->in.fd, seq + 2, 1) == -1)
-                    {
-                        break;
-                    }
-                    if (seq[2] == '~')
-                    {
-                        switch (seq[1])
-                        {
-                        case '3': /* Delete key. */
-                            linenoise_edit_delete(linenoise_ctx, l);
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    switch (seq[1])
-                    {
-                    case 'A': /* Up */
-                        linenoise_edit_history_next(linenoise_ctx, l, LINENOISE_HISTORY_PREV);
-                        break;
-
-                    case 'B': /* Down */
-                        linenoise_edit_history_next(linenoise_ctx, l, LINENOISE_HISTORY_NEXT);
-                        break;
-
-                    case 'C': /* Right */
-                        linenoise_edit_move_right(linenoise_ctx, l);
-                        break;
-
-                    case 'D': /* Left */
-                        linenoise_edit_move_left(linenoise_ctx, l);
-                        break;
-
-                    case 'H': /* Home */
-                        linenoise_edit_move_home(linenoise_ctx, l);
-                        break;
-
-                    case 'F': /* End*/
-                        linenoise_edit_move_end(linenoise_ctx, l);
-                        break;
-                    }
-                }
-            }
-
-            /* ESC O sequences. */
-            else if (seq[0] == 'O')
-            {
-                switch (seq[1])
-                {
-                case 'H': /* Home */
-                    linenoise_edit_move_home(linenoise_ctx, l);
-                    break;
-
-                case 'F': /* End*/
-                    linenoise_edit_move_end(linenoise_ctx, l);
-                    break;
-                }
-            }
-            break;
-
-        default:
-            if (linenoise_edit_insert(linenoise_ctx, l, c) != 0)
-            {
-                return -1;
-            }
-            break;
-
         case CTRL_U: /* Ctrl+u, delete the whole line. */
             delete_whole_line(linenoise_ctx, l);
             break;
@@ -1519,6 +1431,17 @@ static int linenoise_edit(
         case CTRL_W: /* ctrl+w, delete previous word */
             linenoise_edit_delete_prev_word(linenoise_ctx, l);
             break;
+
+        case ESC:    /* escape sequence */
+            break;
+
+        default:
+            if (linenoise_edit_insert(linenoise_ctx, l, c) != 0)
+            {
+                return -1;
+            }
+            break;
+
         }
     }
     return l->len;
