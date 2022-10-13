@@ -167,9 +167,6 @@ linenoise_print_key_codes(linenoise_st * linenoise_ctx);
 void
 linenoise_set_mask_mode(linenoise_st * linenoise_ctx, bool enable);
 
-void
-linenoise_beep_control(linenoise_st * linenoise_ctx, bool enable);
-
 struct linenoise_st *
 linenoise_new(FILE * in_stream, FILE * out_stream);
 

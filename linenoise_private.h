@@ -72,10 +72,6 @@ struct linenoise_st
     {
         bool mask_mode;
         bool multiline_mode;
-        bool disable_beep;
-#if WITH_NATIVE_COMPLETION
-        linenoise_completion_callback * completion_callback;
-#endif
     } options;
 
     struct

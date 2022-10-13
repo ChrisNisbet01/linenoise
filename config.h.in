@@ -6,9 +6,3 @@
  */
 #cmakedefine01 QUERY_TERMINAL_FOR_WIDTH
 
-/*
- * Include the 'native' completion code that comes with linenoise. It calls the
- * completion callback (if registered) when the TAB key is entered.
- */
-#cmakedefine01 WITH_NATIVE_COMPLETION
-
