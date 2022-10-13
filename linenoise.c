@@ -111,6 +111,7 @@
 #include "linenoise_hints.h"
 #endif
 
+#include <inttypes.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -1161,17 +1162,15 @@ static int linenoise_edit(
 	    uint32_t flags = 0;
             bool const res = linenoise_ctx->key_bindings[index].handler(
                 linenoise_ctx,
-		&flags,
+		        &flags,
                 key_str,
                 linenoise_ctx->key_bindings[index].user_ctx);
-	    if (!res)
-	    {
-		    return -1;
-	    }
-	    if ((flags & key_binding_done) != 0)
-	    {
-		    break;
-	    }
+            (void)res;
+            if ((flags & key_binding_done) != 0)
+            {
+                linenoise_edit_done(linenoise_ctx, l);
+                break;
+            }
             continue;
         }
 #endif
