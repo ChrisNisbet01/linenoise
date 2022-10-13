@@ -1116,6 +1116,105 @@ linenoise_getchar_nonblock(int const fd, char * const key)
 	return nread;
 }
 
+static bool
+delete_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    linenoise_edit_delete(linenoise_ctx, l);
+
+    return true;
+}
+
+static bool
+up_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    linenoise_edit_history_next(linenoise_ctx, l, LINENOISE_HISTORY_PREV);
+
+    return true;
+}
+
+static bool
+down_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    linenoise_edit_history_next(linenoise_ctx, l, LINENOISE_HISTORY_NEXT);
+
+    return true;
+}
+
+static bool
+right_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    linenoise_edit_move_right(linenoise_ctx, l);
+
+    return true;
+}
+
+static bool
+left_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    linenoise_edit_move_left(linenoise_ctx, l);
+
+    return true;
+}
+
+static bool
+home_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    linenoise_edit_move_home(linenoise_ctx, l);
+
+    return true;
+}
+
+static bool
+end_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * key,
+    void * const user_ctx)
+{
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
+    linenoise_edit_move_end(linenoise_ctx, l);
+
+    return true;
+}
+
+
 /* This function is the core of the line editing capability of linenoise.
  * It expects 'fd' to be already in "raw mode" so that every key pressed
  * will be returned ASAP to read().
@@ -1223,25 +1322,6 @@ static int linenoise_edit(
                 continue;
             }
 }
-
-        if (linenoise_ctx->key_bindings[(unsigned)c].handler != NULL)
-        {
-            size_t const index = (unsigned)c;
-	    char key_str[2] = {c, '\0'};
-	    uint32_t flags = 0;
-            bool const res = linenoise_ctx->key_bindings[index].handler(
-                linenoise_ctx,
-		        &flags,
-                key_str,
-                linenoise_ctx->key_bindings[index].user_ctx);
-            (void)res;
-            if ((flags & key_binding_done) != 0)
-            {
-                linenoise_edit_done(linenoise_ctx, l);
-                break;
-            }
-            continue;
-        }
 #endif
 
 #if WITH_NATIVE_COMPLETION
@@ -1840,6 +1920,19 @@ linenoise_new(FILE * const in_stream, FILE * const out_stream)
     }
 
     linenoise_ctx->keymap = linenoise_keymap_new();
+#define ESCAPESTR "\x1b"
+
+    linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[3~", delete_handler, NULL);
+    linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[A", up_handler, NULL);
+    linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[B", down_handler, NULL);
+    linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[C", right_handler, NULL);
+    linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[D", left_handler, NULL);
+    linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[H", home_handler, NULL);
+    linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[F", end_handler, NULL);
+    linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "OH", home_handler, NULL);
+    linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "OF", end_handler, NULL);
+
+
     linenoise_ctx->in.stream = in_stream;
     linenoise_ctx->in.fd = fileno(in_stream);
     linenoise_ctx->is_a_tty = isatty(linenoise_ctx->in.fd);
