@@ -1,10 +1,5 @@
 #pragma once
 
-/*
- * Include the native 'hint' support that comes with linenoise.
- */
-#cmakedefine01 WITH_HINTS
-
 /* 
  * Custom key binding support similar to what tinyrl provides.
  * Includes support for line completion similar to what tinyrl provides.

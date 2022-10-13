@@ -78,10 +78,6 @@ struct linenoise_st
 #if WITH_NATIVE_COMPLETION
         linenoise_completion_callback * completion_callback;
 #endif
-#if WITH_HINTS
-        linenoise_hints_callback * hints_callback;
-        linenoise_free_hints_callback * free_hints_callback;
-#endif
     } options;
 
     struct

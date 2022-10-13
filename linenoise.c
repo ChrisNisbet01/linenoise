@@ -107,9 +107,6 @@
 #include "linenoise_private.h"
 #include "buffer.h"
 #include "export.h"
-#if WITH_HINTS
-#include "linenoise_hints.h"
-#endif
 
 #include <fcntl.h>
 #include <inttypes.h>
@@ -645,10 +642,6 @@ refresh_single_line(
     {
         linenoise_buffer_append(&ab, buf, len);
     }
-#if WITH_HINTS
-    /* Show hints if any. */
-    linenoise_hints_refreshShowHints(linenoise_ctx, &ab, l, plen);
-#endif
     /* Erase to right */
     linenoise_buffer_append(&ab, "\x1b[0K", strlen("\x1b[0K"));
     /* Move cursor to original position. */
@@ -730,11 +723,6 @@ refresh_multi_line(
     {
         linenoise_buffer_append(&ab, l->line_buf->b, l->len);
     }
-
-#if WITH_HINTS
-    /* Show hints if any. */
-    linenoise_hints_refreshShowHints(linenoise_ctx, &ab, l, plen);
-#endif
 
     /* If we are at the very end of the screen with our prompt, we need to
      * emit a newline and move the prompt to the first column. */
@@ -1022,21 +1010,6 @@ linenoise_edit_done(
             refresh_line(linenoise_ctx, l);
         }
     }
-
-#if WITH_HINTS
-    if (linenoise_ctx->options.hints_callback != NULL)
-    {
-        /*
-         * Force a refresh without hints to leave the previous
-         * line as the user typed it after a newline.*
-         */
-        linenoise_hints_callback * const hc = linenoise_ctx->options.hints_callback;
-        linenoise_ctx->options.hints_callback = NULL;
-        refresh_line(linenoise_ctx, l);
-        linenoise_ctx->options.hints_callback = hc;
-    }
-#endif
-
 }
 
 static int

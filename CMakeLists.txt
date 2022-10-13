@@ -26,8 +26,6 @@ add_library(linenoise SHARED
   buffer.c
   buffer.h
   linenoise_private.h
-  linenoise_hints.c
-  linenoise_hints.h
   linenoise_key_binding.c
 )
 

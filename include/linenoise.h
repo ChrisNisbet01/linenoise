@@ -53,20 +53,11 @@ typedef struct linenoise_completions linenoise_completions;
 
 typedef void(linenoise_completion_callback)(const char *, linenoise_completions *);
 
-typedef char*(linenoise_hints_callback)(const char *, int *color, int *bold);
-
-typedef void(linenoise_free_hints_callback)(void *);
-
 void
 linenoise_set_completion_callback(linenoise_st * linenoise_ctx, linenoise_completion_callback * cb);
 
 void
-linenoise_set_hints_callback(linenoise_st * linenoise_ctx, linenoise_hints_callback * cb);
-
-void
-linenoise_set_free_hints_callback(linenoise_st * linenoise_ctx, linenoise_free_hints_callback * cb);
-
-void linenoise_add_completion(linenoise_completions * completions, char const * completion);
+linenoise_add_completion(linenoise_completions * completions, char const * completion);
 
 /*
  * Get the current pointer to the line buffer. Note that any changes made by
