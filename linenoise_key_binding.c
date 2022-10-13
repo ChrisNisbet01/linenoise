@@ -126,7 +126,7 @@ linenoise_insert_text_len(
     }
     if ((flags & key_binding_refresh) != 0)
     {
-        refresh_line(linenoise_ctx, l);
+        linenoise_refresh_line(linenoise_ctx);
     }
 
     return true;
@@ -260,7 +260,7 @@ linenoise_complete(
     if (!did_some_completion)
     {
         linenoise_display_matches(linenoise_ctx, matches);
-        refresh_multi_line(linenoise_ctx, &linenoise_ctx->state, false);
+        refresh_multi_line(linenoise_ctx, false);
     }
 
 done:

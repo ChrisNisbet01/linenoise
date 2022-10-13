@@ -124,6 +124,8 @@
 #include <unistd.h>
 
 
+#define ESCAPESTR "\x1b"
+
 static char const * const unsupported_term[] = { "dumb", "cons25", "emacs", NULL };
 
 enum KEY_ACTION
@@ -148,7 +150,6 @@ enum KEY_ACTION
     ESC = 27,           /* Escape */
     BACKSPACE =  127    /* Backspace */
 };
-
 
 /* Debugging macro. */
 #if 0
@@ -416,9 +417,9 @@ NO_EXPORT
 bool
 refresh_multi_line(
     linenoise_st * const linenoise_ctx,
-    struct linenoise_state * const l,
     bool const row_clear_required)
 {
+    struct linenoise_state * const l = &linenoise_ctx->state;
     bool success = true;
     char seq[64];
     int plen = strlen(l->prompt);
@@ -526,19 +527,10 @@ refresh_multi_line(
     return success;
 }
 
-NO_EXPORT
-bool
-refresh_line(
-    linenoise_st * const linenoise_ctx,
-    struct linenoise_state * const l)
-{
-    return refresh_multi_line(linenoise_ctx, l, true);
-}
-
 bool
 linenoise_refresh_line(linenoise_st *linenoise_ctx)
 {
-	return refresh_line(linenoise_ctx, &linenoise_ctx->state);
+    return refresh_multi_line(linenoise_ctx, true);
 }
 
 /* Insert the character 'c' at cursor current position.
@@ -717,6 +709,7 @@ delete_whole_line(
 static void
 linenoise_edit_done(
     linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
     struct linenoise_state * const l)
 {
     linenoise_ctx->history.current_len--;
@@ -724,7 +717,7 @@ linenoise_edit_done(
     linenoise_ctx->history.history[linenoise_ctx->history.current_len] = NULL;
     if (linenoise_edit_move_end(linenoise_ctx, l))
     {
-        refresh_line(linenoise_ctx, l);
+        *flags |= key_binding_refresh;
     }
 }
 
@@ -1142,11 +1135,15 @@ static int linenoise_edit(
                 }
                 if ((flags & key_binding_refresh) != 0)
                 {
-                    refresh_line(linenoise_ctx, l);
+                    linenoise_refresh_line(linenoise_ctx);
                 }
                 if ((flags & key_binding_done) != 0)
                 {
-                    linenoise_edit_done(linenoise_ctx, l);
+                    linenoise_edit_done(linenoise_ctx, &flags, l);
+                    if ((flags & key_binding_refresh) != 0)
+                    {
+                        linenoise_refresh_line(linenoise_ctx);
+                    }
                     break;
                 }
                 continue;
@@ -1574,9 +1571,6 @@ linenoise_new(FILE * const in_stream, FILE * const out_stream)
     linenoise_bind_key(linenoise_ctx, CTRL_E, end_handler, NULL);
     linenoise_bind_key(linenoise_ctx, CTRL_L, ctrl_l_handler, NULL);
     linenoise_bind_key(linenoise_ctx, CTRL_W, ctrl_w_handler, NULL);
-
-
-#define ESCAPESTR "\x1b"
 
     linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[3~", delete_handler, NULL);
     linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[A", up_handler, NULL);

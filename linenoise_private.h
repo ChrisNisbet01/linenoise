@@ -85,12 +85,8 @@ int
 linenoise_get_terminal_width(int ifd, int ofd);
 
 bool
-refresh_line(linenoise_st * linenoise_ctx, struct linenoise_state * l);
-
-bool
 refresh_multi_line(
     linenoise_st * linenoise_ctx,
-    struct linenoise_state * l,
     bool row_clear_required);
 
 bool
