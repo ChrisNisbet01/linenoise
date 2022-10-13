@@ -1,12 +1,6 @@
 #pragma once
 
 /* 
- * Custom key binding support similar to what tinyrl provides.
- * Includes support for line completion similar to what tinyrl provides.
- */
-#cmakedefine01 WITH_KEY_BINDING
-
-/* 
  * Use ASCII escape sequences to try and determine the terminal width if the
  * ioctl() call fails.
  */

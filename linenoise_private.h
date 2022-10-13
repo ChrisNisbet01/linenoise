@@ -64,9 +64,7 @@ struct linenoise_st
     struct termios orig_termios;
 
     struct linenoise_keymap * keymap;
-#if WITH_KEY_BINDING
     key_binding_st key_bindings[256]; /* One for each ACSII character. */
-#endif
 
     struct linenoise_state state;
 

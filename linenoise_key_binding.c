@@ -2,8 +2,6 @@
 #include "linenoise_private.h"
 #include "export.h"
 
-
-#if WITH_KEY_BINDING
 #include <string.h>
 #include <stdlib.h>
 
@@ -269,6 +267,4 @@ done:
 
     return res;
 }
-
-#endif /* WITH_KEY_BINDING */
 
