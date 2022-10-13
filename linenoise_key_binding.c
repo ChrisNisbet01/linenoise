@@ -1,9 +1,71 @@
 #include "linenoise.h"
 #include "linenoise_private.h"
+#include "export.h"
 
 
 #if WITH_KEY_BINDING
 #include <string.h>
+#include <stdlib.h>
+
+NO_EXPORT
+struct linenoise_keymap *
+linenoise_keymap_new(void)
+{
+	struct linenoise_keymap *keymap;
+
+	keymap = calloc(1, sizeof(*keymap));
+
+	return keymap;
+}
+
+NO_EXPORT
+void
+linenoise_keymap_free(struct linenoise_keymap * const keymap)
+{
+    for (size_t i = 0; i < KEYMAP_SIZE; i++)
+    {
+        if (keymap->keymap[i] != NULL)
+        {
+            linenoise_keymap_free(keymap->keymap[i]);
+        }
+    }
+    free(keymap);
+}
+
+void
+linenoise_bind_keyseq(
+    linenoise_st * const linenoise_ctx,
+    const char * const seq_in,
+    key_binding_handler_cb const handler,
+    void * const context)
+{
+	struct linenoise_keymap * keymap;
+	unsigned char key;
+    const char * seq = seq_in;
+
+    if (seq[0] == '\0')
+    {
+		return;
+    }
+
+	keymap = linenoise_ctx->keymap;
+    key = seq[0];
+    seq++;
+
+	while (seq[0] != '\0')
+    {
+        if (keymap->keymap[key] == NULL)
+        {
+			keymap->keymap[key] = linenoise_keymap_new();
+        }
+		keymap = keymap->keymap[key];
+        key = seq[0];
+        seq++;
+	}
+
+	keymap->handler[key] = handler;
+	keymap->context[key] = context;
+}
 
 void
 linenoise_bind_key(
@@ -12,8 +74,9 @@ linenoise_bind_key(
     key_binding_handler_cb const handler,
     void * const user_ctx)
 {
-    linenoise_ctx->key_bindings[key].handler = handler;
-    linenoise_ctx->key_bindings[key].user_ctx = user_ctx;
+    char seq[2] = {key, '\0'};
+
+    linenoise_bind_keyseq(linenoise_ctx, seq, handler, user_ctx);
 }
 
 void

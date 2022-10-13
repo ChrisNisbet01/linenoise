@@ -137,6 +137,13 @@ linenoise_bind_key(
     key_binding_handler_cb handler,
     void * user_ctx);
 
+void
+linenoise_bind_keyseq(
+    linenoise_st * linenoise_ctx,
+    const char * seq,
+    key_binding_handler_cb handler,
+    void * context);
+
 char *
 linenoise(linenoise_st * linenoise_ctx, char const * prompt);
 

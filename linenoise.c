@@ -111,6 +111,7 @@
 #include "linenoise_hints.h"
 #endif
 
+#include <fcntl.h>
 #include <inttypes.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -1097,6 +1098,23 @@ ctrl_c_handler_default(
     return (int)l->len;
 }
 
+static int
+linenoise_getchar_nonblock(int const fd, char * const key)
+{
+	int const flags = fcntl(fd, F_GETFL, 0);
+
+    if (flags != -1)
+    {
+		fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    }
+
+    int const nread = read(fd, key, 1);
+    if (flags != -1)
+    {
+		fcntl(fd, F_SETFL, flags);
+    }
+	return nread;
+}
 
 /* This function is the core of the line editing capability of linenoise.
  * It expects 'fd' to be already in "raw mode" so that every key pressed
@@ -1155,6 +1173,57 @@ static int linenoise_edit(
 
 
 #if WITH_KEY_BINDING
+{
+            struct linenoise_keymap * keymap = linenoise_ctx->keymap;
+            key_binding_handler_cb handler = NULL;
+            void * context = NULL;
+
+            for (;;)
+            {
+                uint8_t const index = c;
+                if (keymap->handler[index] != NULL)
+                {
+                    /* Indicates the end a sequence*/
+                    handler = keymap->handler[index];
+                    context = keymap->context[index];
+                    break;
+                }
+                keymap = keymap->keymap[index];
+                if (keymap == NULL)
+                {
+                    break;
+                }
+
+                char new_c;
+                nread = linenoise_getchar_nonblock(linenoise_ctx->in.fd, &new_c);
+                if (nread <= 0)
+                {
+                    break;
+                }
+                c = new_c;
+            }
+
+            if (handler != NULL)
+            {
+                char key_str[2] = { c, '\0' };
+                uint32_t flags = 0;
+                bool const res = handler(
+                    linenoise_ctx,
+                    &flags,
+                    key_str,
+                    context);
+
+                (void)res;
+
+                if ((flags & key_binding_done) != 0)
+                {
+                    linenoise_edit_done(linenoise_ctx, l);
+                    break;
+                }
+                continue;
+            }
+}
+
         if (linenoise_ctx->key_bindings[(unsigned)c].handler != NULL)
         {
             size_t const index = (unsigned)c;
@@ -1759,16 +1828,18 @@ linenoise_history_load(linenoise_st * const linenoise_ctx, char const * filename
 }
 #endif
 
+
 struct linenoise_st *
 linenoise_new(FILE * const in_stream, FILE * const out_stream)
 {
-    struct linenoise_st * const linenoise_ctx = calloc(1, sizeof *linenoise_ctx);
+    linenoise_st * const linenoise_ctx = calloc(1, sizeof *linenoise_ctx);
 
     if (linenoise_ctx == NULL)
     {
         goto done;
     }
 
+    linenoise_ctx->keymap = linenoise_keymap_new();
     linenoise_ctx->in.stream = in_stream;
     linenoise_ctx->in.fd = fileno(in_stream);
     linenoise_ctx->is_a_tty = isatty(linenoise_ctx->in.fd);
@@ -1794,6 +1865,9 @@ linenoise_delete(linenoise_st * const linenoise_ctx)
     {
         disable_raw_mode(linenoise_ctx, linenoise_ctx->in.fd);
     }
+    linenoise_keymap_free(linenoise_ctx->keymap);
+    linenoise_ctx->keymap = NULL;
+
     free_history(linenoise_ctx);
 
     free(linenoise_ctx);

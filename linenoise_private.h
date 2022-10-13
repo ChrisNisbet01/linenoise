@@ -15,6 +15,14 @@ struct linenoise_completions {
   char * * cvec;
 };
 
+#define KEYMAP_SIZE 256
+
+struct linenoise_keymap {
+	key_binding_handler_cb handler[KEYMAP_SIZE];
+	struct linenoise_keymap *keymap[KEYMAP_SIZE];
+	void *context[KEYMAP_SIZE];
+};
+
 typedef struct key_binding_st
 {
     void * user_ctx;
@@ -55,6 +63,7 @@ struct linenoise_st
     bool in_raw_mode;
     struct termios orig_termios;
 
+    struct linenoise_keymap * keymap;
 #if WITH_KEY_BINDING
     key_binding_st key_bindings[256]; /* One for each ACSII character. */
 #endif
@@ -100,4 +109,10 @@ linenoise_edit_insert(
     linenoise_st * linenoise_ctx,
     struct linenoise_state * l,
     char c);
+
+struct linenoise_keymap *
+linenoise_keymap_new(void);
+
+void
+linenoise_keymap_free(struct linenoise_keymap * keymap);
 
