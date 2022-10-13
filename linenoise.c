@@ -151,25 +151,6 @@ enum KEY_ACTION
     BACKSPACE =  127    /* Backspace */
 };
 
-/* Debugging macro. */
-#if 0
-FILE *lndebug_fp = NULL;
-#define lndebug(...) \
-    do { \
-        if (lndebug_fp == NULL) { \
-            lndebug_fp = fopen("/tmp/lndebug.txt","a"); \
-            fprintf(lndebug_fp, \
-            "[%d %d %d] p: %d, rows: %d, rpos: %d, max: %d, oldmax: %d\n", \
-            (int)l->len,(int)l->pos,(int)l->oldpos,plen,rows,rpos, \
-            (int)l->maxrows,old_rows); \
-        } \
-        fprintf(lndebug_fp, ", " __VA_ARGS__); \
-        fflush(lndebug_fp); \
-    } while (0)
-#else
-#define lndebug(fmt, ...)
-#endif
-
 char *
 linenoise_line_get(linenoise_st * const linenoise_ctx)
 {
@@ -449,19 +430,16 @@ refresh_multi_line(
     {
         if (old_rows - rpos > 0)
         {
-            lndebug("go down %d", old_rows - rpos);
             linenoise_buffer_snprintf(&ab, seq, sizeof seq, "\x1b[%dB", old_rows - rpos);
         }
 
         /* Now for every row clear it, go up. */
         for (int j = 0; j < old_rows - 1; j++)
         {
-            lndebug("clear+up");
             linenoise_buffer_append(&ab, "\r\x1b[0K\x1b[1A", strlen("\r\x1b[0K\x1b[1A"));
         }
 
         /* Clean the top line. */
-        lndebug("clear");
         linenoise_buffer_append(&ab, "\r\x1b[0K", strlen("\r\x1b[0K"));
     }
 
@@ -483,7 +461,6 @@ refresh_multi_line(
      * emit a newline and move the prompt to the first column. */
     if (l->pos && l->pos == l->len && ((l->pos + plen) % l->cols) == 0)
     {
-        lndebug("<newline>");
         linenoise_buffer_append(&ab, "\n\r", strlen("\n\r"));
         rows++;
         if (rows > (int)l->maxrows)
@@ -494,19 +471,16 @@ refresh_multi_line(
 
     /* Move cursor to right position. */
     rpos2 = (plen + l->pos + l->cols) / l->cols; /* current cursor relative row. */
-    lndebug("rpos2 %d", rpos2);
 
     /* Go up till we reach the expected positon. */
     if (rows - rpos2 > 0)
     {
-        lndebug("go-up %d", rows - rpos2);
         linenoise_buffer_snprintf(&ab, seq, sizeof seq, "\x1b[%dA", rows - rpos2);
     }
 
     /* Set column. */
     col = (plen + (int)l->pos) % (int)l->cols;
-    lndebug("set col %d", 1 + col);
-    if (col)
+    if (col != 0)
     {
         linenoise_buffer_snprintf(&ab, seq, sizeof seq, "\r\x1b[%dC", col);
     }
@@ -515,7 +489,6 @@ refresh_multi_line(
         linenoise_buffer_append(&ab, "\r", strlen("\r"));
     }
 
-    lndebug("\n");
     l->oldpos = l->pos;
 
     if (write(fd, ab.b, ab.len) == -1)
@@ -653,8 +626,11 @@ linenoise_edit_history_next(
     return false;
 }
 
-/* Delete the character at the right of the cursor without altering the cursor
- * position. Basically this is what happens with the "Delete" keyboard key. */
+/*
+ * Delete the character at the right of the cursor without altering the cursor
+ * position.
+ * Basically this is what happens with the "Delete" keyboard key.
+ */
 static bool
 linenoise_edit_delete(
     linenoise_st * const linenoise_ctx,
@@ -746,6 +722,7 @@ delete_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Delete the character to the right of the cursor. */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     if (linenoise_edit_delete(linenoise_ctx, l))
@@ -763,6 +740,7 @@ up_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Show the previous history entry. */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     if (linenoise_edit_history_next(linenoise_ctx, l, LINENOISE_HISTORY_PREV))
@@ -780,6 +758,7 @@ down_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Show the next history entry. */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     if (linenoise_edit_history_next(linenoise_ctx, l, LINENOISE_HISTORY_NEXT))
@@ -797,6 +776,7 @@ right_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Move the cursor right one position. */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     if (l->pos != l->len)
@@ -815,6 +795,7 @@ left_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Move the cursor left one position. */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     if (l->pos > 0)
@@ -833,6 +814,7 @@ home_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Move the cursor to the start of the line. */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     if (l->pos != 0)
@@ -851,6 +833,7 @@ end_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Move the cursor to the EOL. */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     if (linenoise_edit_move_end(linenoise_ctx, l))
@@ -868,6 +851,7 @@ default_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Insert the key at the current cursor position. */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     if (linenoise_edit_insert(linenoise_ctx, l, flags, *key) != 0)
@@ -885,6 +869,7 @@ enter_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Indicate that processing is done. */
     *flags |= key_binding_done;
 
     return true;
@@ -897,6 +882,7 @@ ctrl_c_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Clear the whole line and indicate that processing is done. */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     delete_whole_line(linenoise_ctx, l);
@@ -912,6 +898,7 @@ backspace_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Delete the character to the left of the cursor. */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     if (l->pos > 0 && l->len > 0)
@@ -935,6 +922,10 @@ ctrl_d_handler(
     char const * key,
     void * const user_ctx)
 {
+    /*
+     * Delete the character to the right of the cursor if there is one,
+     * else indicate EOF (i.e. results in an error and program typically exits).
+     */
     struct linenoise_state * const l = &linenoise_ctx->state;
     bool result;
 
@@ -944,9 +935,11 @@ ctrl_d_handler(
     }
     else
     {
+        /* Line is empty, so indicate an error. */
         linenoise_ctx->history.current_len--;
         free(linenoise_ctx->history.history[linenoise_ctx->history.current_len]);
         linenoise_ctx->history.history[linenoise_ctx->history.current_len] = NULL;
+
         *flags |= key_binding_error;
         result = true;
     }
@@ -961,6 +954,10 @@ ctrl_t_handler(
     char const * key,
     void * const user_ctx)
 {
+    /*
+     * Swap the current character with the one to its left, and move the
+     * cursor right one position.
+     */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     if (l->pos > 0 && l->pos < l->len)
@@ -986,6 +983,7 @@ ctrl_u_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Delete the whole line. */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     delete_whole_line(linenoise_ctx, l);
@@ -1001,6 +999,7 @@ ctrl_k_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Delete from cursor to EOL. */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     l->line_buf->b[l->pos] = '\0';
@@ -1017,6 +1016,7 @@ ctrl_l_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Clear the screen and move the cursor to EOL. */
     linenoise_clear_screen(linenoise_ctx);
     *flags |= key_binding_refresh;
 
@@ -1030,6 +1030,7 @@ ctrl_w_handler(
     char const * key,
     void * const user_ctx)
 {
+    /* Delete the previous word. */
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     linenoise_edit_delete_prev_word(linenoise_ctx, l);
