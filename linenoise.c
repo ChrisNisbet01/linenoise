@@ -229,6 +229,7 @@ enable_raw_mode(linenoise_st * const linenoise_ctx, int const fd)
     }
 
     raw = linenoise_ctx->orig_termios;  /* modify the original mode */
+#if 0
     /* input modes: no break, no CR to NL, no parity check, no strip char,
      * no start/stop output control. */
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
@@ -242,6 +243,13 @@ enable_raw_mode(linenoise_st * const linenoise_ctx, int const fd)
     /* control chars - set return condition: min number of bytes and timer.
      * We want read to return every single byte, without timeout. */
     raw.c_cc[VMIN] = 1; raw.c_cc[VTIME] = 0; /* 1 byte, no timer */
+#else
+    raw.c_iflag = 0;
+    raw.c_oflag = OPOST | ONLCR;
+    raw.c_lflag = 0;
+    raw.c_cc[VMIN] = 1;
+    raw.c_cc[VTIME] = 0;
+#endif
 
     /* put terminal in raw mode after flushing */
     if (tcsetattr(fd, TCSAFLUSH, &raw) < 0)
