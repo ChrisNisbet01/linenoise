@@ -827,10 +827,12 @@ linenoise_refresh_line(linenoise_st *linenoise_ctx)
 /* Insert the character 'c' at cursor current position.
  *
  * On error writing to the terminal -1 is returned, otherwise 0. */
+NO_EXPORT
 int
 linenoise_edit_insert(
     linenoise_st * const linenoise_ctx,
     struct linenoise_state * const l,
+    uint32_t * const flags,
     char const c)
 {
     if (l->len >= l->line_buf->capacity)
@@ -876,7 +878,7 @@ linenoise_edit_insert(
 
     if (require_full_refresh)
     {
-        refresh_line(linenoise_ctx, l);
+        *flags |= key_binding_refresh;
     }
     else
     {
@@ -894,7 +896,7 @@ done:
 }
 
 /* Move cursor to the end of the line. */
-static void
+static bool
 linenoise_edit_move_end(
     linenoise_st * const linenoise_ctx,
     struct linenoise_state * const l)
@@ -902,8 +904,10 @@ linenoise_edit_move_end(
     if (l->pos != l->len)
     {
         l->pos = l->len;
-        refresh_line(linenoise_ctx, l);
+        return true;
     }
+
+    return false;
 }
 
 /* Substitute the currently edited line with the next or previous history
@@ -952,7 +956,7 @@ linenoise_edit_history_next(
 
 /* Delete the character at the right of the cursor without altering the cursor
  * position. Basically this is what happens with the "Delete" keyboard key. */
-static void
+static bool
 linenoise_edit_delete(
     linenoise_st * const linenoise_ctx,
     struct linenoise_state * const l)
@@ -962,8 +966,10 @@ linenoise_edit_delete(
         memmove(l->line_buf->b + l->pos, l->line_buf->b + l->pos + 1, l->len - l->pos - 1);
         l->len--;
         l->line_buf->b[l->len] = '\0';
-        refresh_line(linenoise_ctx, l);
+        return true;
     }
+
+    return false;
 }
 
 /* Delete the previous word, maintaining the cursor at the start of the
@@ -1011,7 +1017,10 @@ linenoise_edit_done(
     linenoise_ctx->history.history[linenoise_ctx->history.current_len] = NULL;
     if (linenoise_ctx->options.multiline_mode)
     {
-        linenoise_edit_move_end(linenoise_ctx, l);
+        if (linenoise_edit_move_end(linenoise_ctx, l))
+        {
+            refresh_line(linenoise_ctx, l);
+        }
     }
 
 #if WITH_HINTS
@@ -1057,7 +1066,10 @@ delete_handler(
 {
     struct linenoise_state * const l = &linenoise_ctx->state;
 
-    linenoise_edit_delete(linenoise_ctx, l);
+    if (linenoise_edit_delete(linenoise_ctx, l))
+    {
+        *flags |= key_binding_refresh;
+    }
 
     return true;
 }
@@ -1159,9 +1171,8 @@ end_handler(
 {
     struct linenoise_state * const l = &linenoise_ctx->state;
 
-    if (l->pos != l->len)
+    if (linenoise_edit_move_end(linenoise_ctx, l))
     {
-        l->pos = l->len;
         *flags |= key_binding_refresh;
     }
 
@@ -1177,7 +1188,7 @@ default_handler(
 {
     struct linenoise_state * const l = &linenoise_ctx->state;
 
-    if (linenoise_edit_insert(linenoise_ctx, l, *key) != 0)
+    if (linenoise_edit_insert(linenoise_ctx, l, flags, *key) != 0)
     {
         *flags |= key_binding_error;
     }
@@ -1193,6 +1204,7 @@ enter_handler(
     void * const user_ctx)
 {
     *flags |= key_binding_done;
+
     return true;
 }
 
@@ -1432,12 +1444,7 @@ static int linenoise_edit(
             {
                 char key_str[2] = { c, '\0' };
                 uint32_t flags = 0;
-                bool const res = handler(
-                    linenoise_ctx,
-                    &flags,
-                    key_str,
-                    context);
-
+                bool const res = handler(linenoise_ctx, &flags, key_str, context);
                 (void)res;
 
                 if ((flags & key_binding_error) != 0)

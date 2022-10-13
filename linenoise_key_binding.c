@@ -119,9 +119,16 @@ linenoise_insert_text_len(
     char const * const text,
     unsigned const count)
 {
+    uint32_t flags = 0;
+    struct linenoise_state * const l = &linenoise_ctx->state;
+
     for (size_t i = 0; i < count; i++)
     {
-        linenoise_edit_insert(linenoise_ctx, &linenoise_ctx->state, text[i]);
+        linenoise_edit_insert(linenoise_ctx, l, &flags, text[i]);
+    }
+    if ((flags & key_binding_refresh) != 0)
+    {
+        refresh_line(linenoise_ctx, l);
     }
 
     return true;

@@ -108,6 +108,7 @@ int
 linenoise_edit_insert(
     linenoise_st * linenoise_ctx,
     struct linenoise_state * l,
+    uint32_t * flags,
     char c);
 
 struct linenoise_keymap *
