@@ -17,9 +17,12 @@ struct linenoise_completions {
 #define KEYMAP_SIZE 256
 
 struct linenoise_keymap {
-	linenoise_key_binding_handler_cb handler[KEYMAP_SIZE];
-	struct linenoise_keymap *keymap[KEYMAP_SIZE];
-	void *context[KEYMAP_SIZE];
+    struct
+    {
+        linenoise_key_binding_handler_cb handler;
+        struct linenoise_keymap * keymap;
+        void *context;
+    } key[KEYMAP_SIZE];
 };
 
 typedef struct linenoise_key_binding_st
@@ -61,10 +64,7 @@ struct linenoise_st
     bool is_a_tty;
     bool in_raw_mode;
     struct termios orig_termios;
-
     struct linenoise_keymap * keymap;
-    linenoise_key_binding_st key_bindings[256]; /* One for each ACSII character. */
-
     struct linenoise_state state;
 
     struct

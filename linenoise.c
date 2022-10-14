@@ -970,14 +970,14 @@ static int linenoise_edit(
             for (;;)
             {
                 uint8_t const index = c;
-                if (keymap->handler[index] != NULL)
+                if (keymap->key[index].handler != NULL)
                 {
                     /* Indicates the end a sequence*/
-                    handler = keymap->handler[index];
-                    context = keymap->context[index];
+                    handler = keymap->key[index].handler;
+                    context = keymap->key[index].context;
                     break;
                 }
-                keymap = keymap->keymap[index];
+                keymap = keymap->key[index].keymap;
                 if (keymap == NULL)
                 {
                     break;

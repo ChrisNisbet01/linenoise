@@ -9,11 +9,9 @@ NO_EXPORT
 struct linenoise_keymap *
 linenoise_keymap_new(void)
 {
-	struct linenoise_keymap *keymap;
+    struct linenoise_keymap * const keymap = calloc(1, sizeof(*keymap));
 
-	keymap = calloc(1, sizeof(*keymap));
-
-	return keymap;
+    return keymap;
 }
 
 NO_EXPORT
@@ -22,9 +20,9 @@ linenoise_keymap_free(struct linenoise_keymap * const keymap)
 {
     for (size_t i = 0; i < KEYMAP_SIZE; i++)
     {
-        if (keymap->keymap[i] != NULL)
+        if (keymap->key[i].keymap != NULL)
         {
-            linenoise_keymap_free(keymap->keymap[i]);
+            linenoise_keymap_free(keymap->key[i].keymap);
         }
     }
     free(keymap);
@@ -52,17 +50,17 @@ linenoise_bind_keyseq(
 
 	while (seq[0] != '\0')
     {
-        if (keymap->keymap[key] == NULL)
+        if (keymap->key[key].keymap == NULL)
         {
-			keymap->keymap[key] = linenoise_keymap_new();
+			keymap->key[key].keymap = linenoise_keymap_new();
         }
-		keymap = keymap->keymap[key];
+		keymap = keymap->key[key].keymap;
         key = seq[0];
         seq++;
 	}
 
-	keymap->handler[key] = handler;
-	keymap->context[key] = context;
+	keymap->key[key].handler = handler;
+	keymap->key[key].context = context;
 }
 
 void
