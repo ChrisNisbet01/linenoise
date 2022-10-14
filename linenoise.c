@@ -589,10 +589,7 @@ linenoise_edit_done(
     linenoise_ctx->history.current_len--;
     free(linenoise_ctx->history.history[linenoise_ctx->history.current_len]);
     linenoise_ctx->history.history[linenoise_ctx->history.current_len] = NULL;
-    if (linenoise_edit_move_end(linenoise_ctx, l))
-    {
-        *flags |= key_binding_refresh;
-    }
+    linenoise_edit_move_end(linenoise_ctx, l);
 }
 
 static int
@@ -784,7 +781,7 @@ ctrl_c_handler(
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     delete_whole_line(linenoise_ctx, l);
-    *flags |= key_binding_done;
+    *flags |= key_binding_refresh;
 
     return true;
 }
@@ -1037,10 +1034,6 @@ static int linenoise_edit(
                 if ((flags & key_binding_done) != 0)
                 {
                     linenoise_edit_done(linenoise_ctx, &flags, l);
-                    if ((flags & key_binding_refresh) != 0)
-                    {
-                        linenoise_refresh_line(linenoise_ctx);
-                    }
                     break;
                 }
                 continue;
@@ -1109,7 +1102,6 @@ linenoise_raw(
     }
     count = linenoise_edit(linenoise_ctx, line_buf, prompt);
     disable_raw_mode(linenoise_ctx, linenoise_ctx->in.fd);
-    fprintf(linenoise_ctx->out.stream, "\n");
 
     return count;
 }
