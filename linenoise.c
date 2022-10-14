@@ -781,7 +781,7 @@ ctrl_c_handler(
     struct linenoise_state * const l = &linenoise_ctx->state;
 
     delete_whole_line(linenoise_ctx, l);
-    *flags |= key_binding_refresh;
+    *flags |= key_binding_done;
 
     return true;
 }
@@ -1234,6 +1234,14 @@ linenoise(linenoise_st * const linenoise_ctx, char const * prompt)
     }
 
 done:
+    if (line == NULL || line[0] == '\0')
+    {
+        /*
+         * Without this, when empty lines (e.g. after CTRL-C) are returned,
+         * the next prompt gets written out on the same line as the previous.
+         */
+        write(linenoise_ctx->out.fd, "\n", 1);
+    }
     return line;
 }
 
