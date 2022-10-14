@@ -235,8 +235,8 @@ linenoise_complete(
         did_some_completion = false;
     }
 
-    /* is there only one completion? */
-    if (!matches[1])
+    /* Is there only one completion? */
+    if (matches[1] == NULL)
     {
         res = true;
         goto done;
