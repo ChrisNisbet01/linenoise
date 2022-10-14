@@ -1,8 +1,2 @@
 #pragma once
 
-/* 
- * Use ASCII escape sequences to try and determine the terminal width if the
- * ioctl() call fails.
- */
-#cmakedefine01 QUERY_TERMINAL_FOR_WIDTH
-

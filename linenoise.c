@@ -124,6 +124,7 @@
 #include <unistd.h>
 
 
+#define DEFAULT_TERMINAL_WIDTH 80
 #define ESCAPESTR "\x1b"
 
 static char const * const unsupported_term[] = { "dumb", "cons25", "emacs", NULL };
@@ -216,8 +217,6 @@ is_unsupported_terminal(void)
 static int
 enable_raw_mode(linenoise_st * const linenoise_ctx, int const fd)
 {
-    struct termios raw;
-
     if (!isatty(fd))
     {
         goto fatal;
@@ -228,28 +227,14 @@ enable_raw_mode(linenoise_st * const linenoise_ctx, int const fd)
         goto fatal;
     }
 
+    struct termios raw;
+
     raw = linenoise_ctx->orig_termios;  /* modify the original mode */
-#if 0
-    /* input modes: no break, no CR to NL, no parity check, no strip char,
-     * no start/stop output control. */
-    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-    /* output modes - disable post processing */
-    raw.c_oflag &= ~(OPOST);
-    /* control modes - set 8 bit chars */
-    raw.c_cflag |= (CS8);
-    /* local modes - echoing off, canonical off, no extended functions,
-     * no signal chars (^Z,^C) */
-    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-    /* control chars - set return condition: min number of bytes and timer.
-     * We want read to return every single byte, without timeout. */
-    raw.c_cc[VMIN] = 1; raw.c_cc[VTIME] = 0; /* 1 byte, no timer */
-#else
     raw.c_iflag = 0;
     raw.c_oflag = OPOST | ONLCR;
     raw.c_lflag = 0;
     raw.c_cc[VMIN] = 1;
     raw.c_cc[VTIME] = 0;
-#endif
 
     /* put terminal in raw mode after flushing */
     if (tcsetattr(fd, TCSAFLUSH, &raw) < 0)
@@ -275,117 +260,22 @@ disable_raw_mode(linenoise_st * const linenoise_ctx, int const fd)
     }
 }
 
-#if QUERY_TERMINAL_FOR_WIDTH
-/* Use the ESC [6n escape sequence to query the horizontal cursor position
- * and return it. On error -1 is returned, on success the position of the
- * cursor. */
-static int
-get_cursor_position(int const ifd, int const ofd)
-{
-    char buf[32];
-    int cols;
-    int rows;
-
-    /* Report cursor location */
-    if (write(ofd, "\x1b[6n", 4) != 4)
-    {
-        return -1;
-    }
-
-    /* Read the response: ESC [ rows ; cols R */
-    size_t i;
-    for (i = 0; i < sizeof(buf) - 1; i++)
-    {
-        if (read(ifd, buf + i, 1) != 1)
-        {
-            break;
-        }
-        if (buf[i] == 'R')
-        {
-            break;
-        }
-    }
-    buf[i] = '\0';
-
-    /* Parse it. */
-    if (buf[0] != ESC || buf[1] != '[')
-    {
-        return -1;
-    }
-    if (sscanf(buf + 2, "%d;%d", &rows, &cols) != 2)
-    {
-        return -1;
-    }
-    return cols;
-}
-#endif
-
 /*
  * Try to get the number of columns in the current terminal, or assume 80
  * if it fails.*
  */
 int
-linenoise_get_terminal_width(int const ifd, int const ofd)
+linenoise_terminal_width(linenoise_st * const linenoise_ctx)
 {
     int cols = DEFAULT_TERMINAL_WIDTH;
     struct winsize ws;
 
-    if (ioctl(ofd, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0)
-    {
-#if QUERY_TERMINAL_FOR_WIDTH
-        /* ioctl() failed. Try to query the terminal itself. */
-
-        /* Get the initial position so we can restore it later. */
-        int const start = get_cursor_position(ifd, ofd);
-
-        if (start == -1)
-        {
-            goto done;
-        }
-
-        /* Go to right margin and get position. */
-        if (write(ofd, "\x1b[999C", 6) != 6)
-        {
-            goto done;
-        }
-        cols = get_cursor_position(ifd, ofd);
-        if (cols == -1)
-        {
-            cols = DEFAULT_TERMINAL_WIDTH;
-            goto done;
-        }
-
-        /* Restore position. */
-        if (cols > start)
-        {
-            char seq[32];
-
-            snprintf(seq, sizeof seq, "\x1b[%dD", cols - start);
-            if (write(ofd, seq, strlen(seq)) == -1)
-            {
-                /* Can't recover... */
-                cols = DEFAULT_TERMINAL_WIDTH;
-                goto done;
-            }
-        }
-#endif
-    }
-    else
+    if (ioctl(linenoise_ctx->out.fd, TIOCGWINSZ, &ws) != -1 && ws.ws_col != 0)
     {
         cols = ws.ws_col;
     }
 
-#if QUERY_TERMINAL_FOR_WIDTH
-done:
-#endif
-
     return cols;
-}
-
-int
-linenoise_terminal_width(linenoise_st * const linenoise_ctx)
-{
-    return linenoise_get_terminal_width(linenoise_ctx->in.fd, linenoise_ctx->out.fd);
 }
 
 /* Clear the screen. Used to handle ctrl+l */
@@ -1057,8 +947,6 @@ ctrl_w_handler(
  * The function returns the length of the current buffer. */
 static int linenoise_edit(
     linenoise_st * const linenoise_ctx,
-    int const stdin_fd,
-    int const stdout_fd,
     struct buffer * const line_buf,
     char const * const prompt)
 {
@@ -1074,7 +962,7 @@ static int linenoise_edit(
     l->oldpos = 0;
     l->pos = 0;
     l->len = 0;
-    l->cols = linenoise_get_terminal_width(stdin_fd, stdout_fd);
+    l->cols = linenoise_terminal_width(linenoise_ctx);
     l->maxrows = 0;
     l->history_index = 0;
 
@@ -1219,7 +1107,7 @@ linenoise_raw(
     {
         return -1;
     }
-    count = linenoise_edit(linenoise_ctx, linenoise_ctx->in.fd, linenoise_ctx->out.fd, line_buf, prompt);
+    count = linenoise_edit(linenoise_ctx, line_buf, prompt);
     disable_raw_mode(linenoise_ctx, linenoise_ctx->in.fd);
     fprintf(linenoise_ctx->out.stream, "\n");
 

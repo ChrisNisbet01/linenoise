@@ -162,9 +162,7 @@ linenoise_display_matches(
     }
 
     /* allow for a space between words */
-    size_t const num_cols = linenoise_get_terminal_width(
-        linenoise_ctx->in.fd,
-        linenoise_ctx->out.fd) / (max + 1);
+    size_t const num_cols = linenoise_terminal_width(linenoise_ctx) / (max + 1);
 
     /* print out a table of completions */
     fprintf(linenoise_ctx->out.stream, "\r\n");
