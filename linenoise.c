@@ -620,6 +620,20 @@ linenoise_getchar_nonblock(int const fd, char * const key)
 }
 
 static bool
+null_handler(
+    linenoise_st * const linenoise_ctx,
+    uint32_t * const flags,
+    char const * const key,
+    void * const user_ctx)
+{
+    /*
+     * Ignore this key.
+     * Handy for ignoring unhandled escape sequence characeters.
+     */
+    return true;
+}
+
+static bool
 delete_handler(
     linenoise_st * const linenoise_ctx,
     uint32_t * const flags,
@@ -1317,23 +1331,25 @@ linenoise_new(FILE * const in_stream, FILE * const out_stream)
         linenoise_bind_key(linenoise_ctx, i, default_handler, NULL);
     }
 
-    linenoise_bind_key(linenoise_ctx, ENTER, enter_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL('c'), ctrl_c_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, BACKSPACE, backspace_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL('h'), backspace_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL('d'), ctrl_d_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL('t'), ctrl_t_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL('b'), left_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL('f'), right_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL('p'), up_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL('n'), down_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL('u'), ctrl_u_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL('k'), ctrl_k_handler, NULL);
     linenoise_bind_key(linenoise_ctx, CTRL('a'), home_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('b'), left_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('c'), ctrl_c_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('d'), ctrl_d_handler, NULL);
     linenoise_bind_key(linenoise_ctx, CTRL('e'), end_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('f'), right_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('h'), backspace_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('k'), ctrl_k_handler, NULL);
     linenoise_bind_key(linenoise_ctx, CTRL('l'), ctrl_l_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('n'), down_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('p'), up_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('t'), ctrl_t_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('u'), ctrl_u_handler, NULL);
     linenoise_bind_key(linenoise_ctx, CTRL('w'), ctrl_w_handler, NULL);
 
+    linenoise_bind_key(linenoise_ctx, ENTER, enter_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, BACKSPACE, backspace_handler, NULL);
+
+    linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[2~", null_handler, NULL); /* Insert. */
     linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[3~", delete_handler, NULL);
     linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[A", up_handler, NULL);
     linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[B", down_handler, NULL);
