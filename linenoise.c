@@ -75,22 +75,8 @@ static char const * const unsupported_term[] = { "dumb", "cons25", "emacs", NULL
 enum KEY_ACTION
 {
     KEY_NULL = 0,       /* NULL */
-    CTRL_A = 1,         /* Ctrl+a */
-    CTRL_B = 2,         /* Ctrl-b */
-    CTRL_C = 3,         /* Ctrl-c */
-    CTRL_D = 4,         /* Ctrl-d */
-    CTRL_E = 5,         /* Ctrl-e */
-    CTRL_F = 6,         /* Ctrl-f */
-    CTRL_H = 8,         /* Ctrl-h */
     TAB = 9,            /* Tab */
-    CTRL_K = 11,        /* Ctrl+k */
-    CTRL_L = 12,        /* Ctrl+l */
     ENTER = 13,         /* Enter */
-    CTRL_N = 14,        /* Ctrl-n */
-    CTRL_P = 16,        /* Ctrl-p */
-    CTRL_T = 20,        /* Ctrl-t */
-    CTRL_U = 21,        /* Ctrl+u */
-    CTRL_W = 23,        /* Ctrl+w */
     ESC = 27,           /* Escape */
     BACKSPACE =  127    /* Backspace */
 };
@@ -1310,7 +1296,7 @@ linenoise_history_set_max_len(linenoise_st * const linenoise_ctx, int const len)
 struct linenoise_st *
 linenoise_new(FILE * const in_stream, FILE * const out_stream)
 {
-    linenoise_st * const linenoise_ctx = calloc(1, sizeof *linenoise_ctx);
+    linenoise_st * linenoise_ctx = calloc(1, sizeof *linenoise_ctx);
 
     if (linenoise_ctx == NULL)
     {
@@ -1318,6 +1304,13 @@ linenoise_new(FILE * const in_stream, FILE * const out_stream)
     }
 
     linenoise_ctx->keymap = linenoise_keymap_new();
+    if (linenoise_ctx->keymap == NULL)
+    {
+        free(linenoise_ctx);
+        linenoise_ctx = NULL;
+
+        goto done;
+    }
 
     for (size_t i = 32; i < 256; i++)
     {
@@ -1325,21 +1318,21 @@ linenoise_new(FILE * const in_stream, FILE * const out_stream)
     }
 
     linenoise_bind_key(linenoise_ctx, ENTER, enter_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_C, ctrl_c_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('c'), ctrl_c_handler, NULL);
     linenoise_bind_key(linenoise_ctx, BACKSPACE, backspace_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_H, backspace_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_D, ctrl_d_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_T, ctrl_t_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_B, left_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_F, right_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_P, up_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_N, down_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_U, ctrl_u_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_K, ctrl_k_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_A, home_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_E, end_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_L, ctrl_l_handler, NULL);
-    linenoise_bind_key(linenoise_ctx, CTRL_W, ctrl_w_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('h'), backspace_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('d'), ctrl_d_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('t'), ctrl_t_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('b'), left_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('f'), right_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('p'), up_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('n'), down_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('u'), ctrl_u_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('k'), ctrl_k_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('a'), home_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('e'), end_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('l'), ctrl_l_handler, NULL);
+    linenoise_bind_key(linenoise_ctx, CTRL('w'), ctrl_w_handler, NULL);
 
     linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[3~", delete_handler, NULL);
     linenoise_bind_keyseq(linenoise_ctx, ESCAPESTR "[A", up_handler, NULL);
