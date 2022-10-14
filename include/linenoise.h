@@ -110,14 +110,14 @@ linenoise_display_matches(
 bool
 linenoise_refresh_line(linenoise_st * linenoise_ctx);
 
-typedef enum linenoise_key_binding_flags_t
+typedef enum linenoise_key_handler_flags_t
 {
-	key_binding_done = 0x01,
-    key_binding_refresh = 0x02,
-    key_binding_error = 0x04
-} linenoise_key_binding_flags_t;
+	linenoise_key_handler_done = 0x01,
+    linenoise_key_handler_refresh = 0x02,
+    linenoise_key_handler_error = 0x04
+} linenoise_key_handler_flags_t;
 
-typedef bool (*key_binding_handler_cb)(
+typedef bool (*linenoise_key_binding_handler_cb)(
 	linenoise_st *linenoise_ctx,
 	uint32_t * flags,
     char const * key,
@@ -127,14 +127,14 @@ void
 linenoise_bind_key(
     linenoise_st * linenoise_ctx,
     uint8_t key,
-    key_binding_handler_cb handler,
+    linenoise_key_binding_handler_cb handler,
     void * user_ctx);
 
 void
 linenoise_bind_keyseq(
     linenoise_st * linenoise_ctx,
     const char * seq,
-    key_binding_handler_cb handler,
+    linenoise_key_binding_handler_cb handler,
     void * context);
 
 char *
@@ -149,17 +149,8 @@ linenoise_history_add(linenoise_st * linenoise_ctx, char const * line);
 int
 linenoise_history_set_max_len(linenoise_st * linenoise_ctx, int len);
 
-int
-linenoise_history_save(linenoise_st * linenoise_ctx, char const * filename);
-
-int
-linenoise_history_load(linenoise_st * linenoise_ctx, char const * filename);
-
 void
 linenoise_clear_screen(linenoise_st * linenoise_ctx);
-
-void
-linenoise_print_key_codes(linenoise_st * linenoise_ctx);
 
 void
 linenoise_set_mask_mode(linenoise_st * linenoise_ctx, bool enable);

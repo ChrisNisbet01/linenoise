@@ -17,16 +17,16 @@ struct linenoise_completions {
 #define KEYMAP_SIZE 256
 
 struct linenoise_keymap {
-	key_binding_handler_cb handler[KEYMAP_SIZE];
+	linenoise_key_binding_handler_cb handler[KEYMAP_SIZE];
 	struct linenoise_keymap *keymap[KEYMAP_SIZE];
 	void *context[KEYMAP_SIZE];
 };
 
-typedef struct key_binding_st
+typedef struct linenoise_key_binding_st
 {
     void * user_ctx;
-    key_binding_handler_cb handler;
-} key_binding_st;
+    linenoise_key_binding_handler_cb handler;
+} linenoise_key_binding_st;
 
 /* The linenoiseState structure represents the state during line editing.
  * We pass this state to functions implementing specific editing
@@ -63,7 +63,7 @@ struct linenoise_st
     struct termios orig_termios;
 
     struct linenoise_keymap * keymap;
-    key_binding_st key_bindings[256]; /* One for each ACSII character. */
+    linenoise_key_binding_st key_bindings[256]; /* One for each ACSII character. */
 
     struct linenoise_state state;
 
@@ -94,7 +94,6 @@ refresh_line_check_row_clear(
 int
 linenoise_edit_insert(
     linenoise_st * linenoise_ctx,
-    struct linenoise_state * l,
     uint32_t * flags,
     char c);
 

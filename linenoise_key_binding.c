@@ -34,7 +34,7 @@ void
 linenoise_bind_keyseq(
     linenoise_st * const linenoise_ctx,
     const char * const seq_in,
-    key_binding_handler_cb const handler,
+    linenoise_key_binding_handler_cb const handler,
     void * const context)
 {
 	struct linenoise_keymap * keymap;
@@ -69,7 +69,7 @@ void
 linenoise_bind_key(
     linenoise_st * const linenoise_ctx,
     uint8_t const key,
-    key_binding_handler_cb const handler,
+    linenoise_key_binding_handler_cb const handler,
     void * const user_ctx)
 {
     char seq[2] = {key, '\0'};
@@ -118,13 +118,13 @@ linenoise_insert_text_len(
     unsigned const count)
 {
     uint32_t flags = 0;
-    struct linenoise_state * const l = &linenoise_ctx->state;
 
     for (size_t i = 0; i < count; i++)
     {
-        linenoise_edit_insert(linenoise_ctx, l, &flags, text[i]);
+        linenoise_edit_insert(linenoise_ctx, &flags, text[i]);
     }
-    if ((flags & key_binding_refresh) != 0)
+
+    if ((flags & linenoise_key_handler_refresh) != 0)
     {
         linenoise_refresh_line(linenoise_ctx);
     }
