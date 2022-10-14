@@ -89,7 +89,7 @@ linenoise_delete_text(
 
     /* move any text which is left, including terminator */
     unsigned const delta = end - start;
-    char * line = linenoise_line_get(linenoise_ctx);
+    char * const line = linenoise_line_get(linenoise_ctx);
     memmove(&line[start], &line[start + delta], ls->len + 1 - end);
     ls->len -= delta;
 
@@ -143,13 +143,11 @@ linenoise_display_matches(
     linenoise_st * const linenoise_ctx,
     char * * const matches)
 {
-    char * * m;
     size_t max;
-    size_t c;
 
     /* Find maximum completion length */
     max = 0;
-    for (m = matches; *m != NULL; m++)
+    for (char * * m = matches; *m != NULL; m++)
     {
         size_t const size = strlen(*m);
 
@@ -164,10 +162,9 @@ linenoise_display_matches(
 
     /* print out a table of completions */
     fprintf(linenoise_ctx->out.stream, "\r\n");
-    m = matches;
-    for (m = matches; *m != NULL;)
+    for (char * * m = matches; *m != NULL;)
     {
-        for (c = 0; c < num_cols && *m; c++, m++)
+        for (size_t c = 0; c < num_cols && *m; c++, m++)
         {
             fprintf(linenoise_ctx->out.stream, "%-*s ", (int)max, *m);
         }
